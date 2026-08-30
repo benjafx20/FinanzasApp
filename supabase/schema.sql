@@ -162,12 +162,8 @@ alter table expenses add column if not exists recurring_expense_id uuid referenc
 -- Red de seguridad: nunca puede haber 2 gastos generados por la misma
 -- plantilla recurrente en el mismo mes calendario, sin importar si lo
 -- intenta generar el cron dos veces o cualquier otro proceso.
-drop index if exists idx_expenses_recurring_unique_month;
 create unique index if not exists idx_expenses_recurring_unique_month
-  on expenses (
-    recurring_expense_id,
-    date_trunc('month', fecha)::date
-  )
+  on expenses (recurring_expense_id, date_trunc('month', fecha))
   where recurring_expense_id is not null;
 
 -- ---------- 8. TRANSFERENCIAS ENTRE CATEGORÍAS ----------

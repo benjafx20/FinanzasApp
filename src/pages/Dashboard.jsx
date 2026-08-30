@@ -19,8 +19,12 @@ import { FAB } from '../components/expenses/FAB';
 const MonthlyTrendChart = lazy(() =>
   import('../components/expenses/MonthlyTrendChart').then((m) => ({ default: m.MonthlyTrendChart }))
 );
+const CategoryPieChart = lazy(() =>
+  import('../components/expenses/CategoryPieChart').then((m) => ({ default: m.CategoryPieChart }))
+);
 import { RecurringExpenseForm } from '../components/expenses/RecurringExpenseForm';
 import { RecurringExpenseRow } from '../components/expenses/RecurringExpenseRow';
+import { ExpenseFilters } from '../components/expenses/ExpenseFilters';
 import { GoalCard } from '../components/goals/GoalCard';
 import { GoalForm } from '../components/goals/GoalForm';
 import { ContributionForm } from '../components/goals/ContributionForm';
@@ -59,6 +63,8 @@ export function Dashboard() {
   const [viewingCategory, setViewingCategory] = useState(null);
   const [editingCategoryDirect, setEditingCategoryDirect] = useState(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
+  const [expenseSearch, setExpenseSearch] = useState('');
+  const [expenseFilterCategoryId, setExpenseFilterCategoryId] = useState(null);
 
   const monthKey = getCurrentMonthKey();
 
@@ -191,6 +197,15 @@ export function Dashboard() {
     if (!viewingCategory) return [];
     return expenses.filter((e) => e.category_id === viewingCategory.id);
   }, [expenses, viewingCategory]);
+
+  const expensesFiltrados = useMemo(() => {
+    const query = expenseSearch.trim().toLowerCase();
+    return expenses.filter((exp) => {
+      if (expenseFilterCategoryId && exp.category_id !== expenseFilterCategoryId) return false;
+      if (query && !(exp.nota || '').toLowerCase().includes(query)) return false;
+      return true;
+    });
+  }, [expenses, expenseSearch, expenseFilterCategoryId]);
 
   const fundingsDeCategoriaEnDetalle = useMemo(() => {
     if (!viewingCategory) return [];
@@ -392,6 +407,13 @@ export function Dashboard() {
         </section>
 
         <section className="dashboard__section">
+          <h2 className="dashboard__section-title">Gasto por categoría este mes</h2>
+          <Suspense fallback={<div className="trend-chart-skeleton" />}>
+            <CategoryPieChart expenses={expenses} categories={allCategories} monthKey={monthKey} />
+          </Suspense>
+        </section>
+
+        <section className="dashboard__section">
           <h2 className="dashboard__section-title">Ingresos recientes</h2>
           {incomesError && <p className="dashboard__error">{incomesError}</p>}
           {incomes.length === 0 ? (
@@ -407,14 +429,23 @@ export function Dashboard() {
 
         <section className="dashboard__section">
           <h2 className="dashboard__section-title">Gastos recientes</h2>
+          <ExpenseFilters
+            query={expenseSearch}
+            onQueryChange={setExpenseSearch}
+            categoryId={expenseFilterCategoryId}
+            onCategoryChange={setExpenseFilterCategoryId}
+            categories={categories}
+          />
           {expensesError && <p className="dashboard__error">{expensesError}</p>}
           {loadingExpenses ? (
             <p className="dashboard__empty">Cargando…</p>
           ) : expenses.length === 0 ? (
             <p className="dashboard__empty">Aún no registras gastos. Toca el botón + para empezar.</p>
+          ) : expensesFiltrados.length === 0 ? (
+            <p className="dashboard__empty">Ningún gasto calza con ese filtro.</p>
           ) : (
             <div className="expense-list">
-              {expenses.map((exp) => (
+              {expensesFiltrados.map((exp) => (
                 <ExpenseCard key={exp.id} expense={exp} onEdit={setEditingExpense} onDelete={handleDelete} />
               ))}
             </div>

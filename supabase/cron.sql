@@ -8,7 +8,6 @@
 --                     o en Settings > API como parte del Project URL)
 --   TU-ANON-KEY   -> tu clave "anon public" (Settings > API)
 -- ============================================================
--- Proyecto actual configurado: boekkozqphevycbszind
 
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net with schema extensions;
@@ -23,10 +22,10 @@ select cron.schedule(
   '0 9 * * *',
   $$
   select net.http_post(
-    url := 'https://boekkozqphevycbszind.supabase.co/functions/v1/generate-recurring-expenses',
+    url := 'https://TU-PROYECTO.supabase.co/functions/v1/generate-recurring-expenses',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer sb_publishable_CSrEh9r_Nt_3LUPBxUoTfQ_KBV72Iha'
+      'Authorization', 'Bearer TU-ANON-KEY'
     ),
     body := '{}'::jsonb
   );
