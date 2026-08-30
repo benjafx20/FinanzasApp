@@ -13,7 +13,7 @@ export function useExpenses(userId) {
     const { data, error: fetchError } = await withSessionRetry(() =>
       supabase
         .from('expenses')
-        .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
+        .select('*, categories!expenses_category_id_fkey(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
         .order('fecha', { ascending: false })
     );
 
@@ -51,7 +51,7 @@ export function useExpenses(userId) {
           nota,
           funding_category_id: fundingCategoryId || null,
         })
-        .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
+        .select('*, categories!expenses_category_id_fkey(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
         .single()
     );
 
@@ -77,7 +77,7 @@ export function useExpenses(userId) {
         funding_category_id: fundingCategoryId || null,
       })
       .eq('id', expenseId)
-      .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
+      .select('*, categories!expenses_category_id_fkey(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
       .single();
 
     if (updateError) throw new Error('No se pudo actualizar el gasto. Intenta de nuevo.');
