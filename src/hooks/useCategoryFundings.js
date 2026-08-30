@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useCategoryFundings(userId) {
   const [fundings, setFundings] = useState([]);
@@ -10,13 +10,13 @@ export function useCategoryFundings(userId) {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('category_fundings')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error: fetchError } = await withSessionRetry(() =>
+      supabase.from('category_fundings').select('*').order('created_at', { ascending: false })
+    );
 
     if (fetchError) {
-      setError('No se pudieron cargar los aportes a categorías.');
+      console.error('[useCategoryFundings] fetchFundings:', fetchError);
+      setError(`No se pudieron cargar los aportes a categorías: ${fetchError.message}`);
       setLoading(false);
       return;
     }
@@ -33,13 +33,18 @@ export function useCategoryFundings(userId) {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
-    const { data, error: insertError } = await supabase
-      .from('category_fundings')
-      .insert({ user_id: userId, category_id: categoryId, monto, origen: 'manual', nota: nota?.trim() || null })
-      .select()
-      .single();
+    const { data, error: insertError } = await withSessionRetry(() =>
+      supabase
+        .from('category_fundings')
+        .insert({ user_id: userId, category_id: categoryId, monto, origen: 'manual', nota: nota?.trim() || null })
+        .select()
+        .single()
+    );
 
-    if (insertError) throw new Error('No se pudo agregar la plata a la categoría.');
+    if (insertError) {
+      console.error('[useCategoryFundings] addManualFunding:', insertError);
+      throw new Error(`No se pudo agregar la plata a la categoría: ${insertError.message}`);
+    }
     setFundings((prev) => [data, ...prev]);
     return data;
   }, [userId]);

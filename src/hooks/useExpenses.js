@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useExpenses(userId) {
   const [expenses, setExpenses] = useState([]);
@@ -10,13 +10,16 @@ export function useExpenses(userId) {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('expenses')
-      .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
-      .order('fecha', { ascending: false });
+    const { data, error: fetchError } = await withSessionRetry(() =>
+      supabase
+        .from('expenses')
+        .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
+        .order('fecha', { ascending: false })
+    );
 
     if (fetchError) {
-      setError('No se pudieron cargar los gastos. Intenta recargar la página.');
+      console.error('[useExpenses] fetchExpenses:', fetchError);
+      setError(`No se pudieron cargar los gastos: ${fetchError.message}`);
       setLoading(false);
       return;
     }
@@ -37,20 +40,25 @@ export function useExpenses(userId) {
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
     if (!categoryId) throw new Error('Debes seleccionar una categoría.');
 
-    const { data, error: insertError } = await supabase
-      .from('expenses')
-      .insert({
-        user_id: userId,
-        category_id: categoryId,
-        monto,
-        fecha,
-        nota,
-        funding_category_id: fundingCategoryId || null,
-      })
-      .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
-      .single();
+    const { data, error: insertError } = await withSessionRetry(() =>
+      supabase
+        .from('expenses')
+        .insert({
+          user_id: userId,
+          category_id: categoryId,
+          monto,
+          fecha,
+          nota,
+          funding_category_id: fundingCategoryId || null,
+        })
+        .select('*, categories(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)')
+        .single()
+    );
 
-    if (insertError) throw new Error('No se pudo registrar el gasto. Intenta de nuevo.');
+    if (insertError) {
+      console.error('[useExpenses] addExpense:', insertError);
+      throw new Error(`No se pudo registrar el gasto: ${insertError.message}`);
+    }
     setExpenses((prev) => [data, ...prev]);
     return data;
   }, [userId]);

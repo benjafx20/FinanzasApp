@@ -55,12 +55,14 @@ export function CategoryDetailModal({
         <button type="button" onClick={onOpenTransfer}>Mover plata</button>
       </div>
 
-      {fundingsDeCategoria.length > 0 && (
-        <div className="category-detail__fundings">
-          <span className="category-detail__expenses-title">Aportes recibidos</span>
+      <div className="category-detail__fundings">
+        <span className="category-detail__expenses-title">Aportes recibidos</span>
+        {fundingsDeCategoria.length === 0 ? (
+          <p className="dashboard__empty">Todavía no hay aportes en esta categoría.</p>
+        ) : (
           <FundingHistory fundings={fundingsDeCategoria} onUndo={onUndoFunding} />
-        </div>
-      )}
+        )}
+      </div>
 
       {category.user_id && (
         <div className="category-detail__manage">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useIncomes(userId) {
   const [incomes, setIncomes] = useState([]);
@@ -10,13 +10,13 @@ export function useIncomes(userId) {
     if (!userId) return;
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('incomes')
-      .select('*')
-      .order('fecha', { ascending: false });
+    const { data, error: fetchError } = await withSessionRetry(() =>
+      supabase.from('incomes').select('*').order('fecha', { ascending: false })
+    );
 
     if (fetchError) {
-      setError('No se pudieron cargar los ingresos.');
+      console.error('[useIncomes] fetchIncomes:', fetchError);
+      setError(`No se pudieron cargar los ingresos: ${fetchError.message}`);
       setLoading(false);
       return;
     }
@@ -32,13 +32,14 @@ export function useIncomes(userId) {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
-    const { data, error: insertError } = await supabase
-      .from('incomes')
-      .insert({ user_id: userId, monto, fecha, nota })
-      .select()
-      .single();
+    const { data, error: insertError } = await withSessionRetry(() =>
+      supabase.from('incomes').insert({ user_id: userId, monto, fecha, nota }).select().single()
+    );
 
-    if (insertError) throw new Error('No se pudo registrar el ingreso. Intenta de nuevo.');
+    if (insertError) {
+      console.error('[useIncomes] addIncome:', insertError);
+      throw new Error(`No se pudo registrar el ingreso: ${insertError.message}`);
+    }
     setIncomes((prev) => [data, ...prev]);
     return data;
   }, [userId]);
