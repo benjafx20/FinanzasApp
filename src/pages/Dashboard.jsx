@@ -155,10 +155,20 @@ export function Dashboard() {
     return { totalMes, totalSemana, gastoSemanaPorCategoria, gastoMesPorCategoria };
   }, [expenses, monthKey]);
 
-  const totalIngresosMes = useMemo(
-    () => incomes.filter((i) => isInMonth(i.fecha, monthKey)).reduce((sum, i) => sum + Number(i.monto), 0),
-    [incomes, monthKey]
-  );
+  const totalIngresosMes = useMemo(() => {
+    const deIngresos = incomes
+      .filter((i) => isInMonth(i.fecha, monthKey))
+      .reduce((sum, i) => sum + Number(i.monto), 0);
+    // Los aportes manuales a una categoría (origen: 'manual') son plata
+    // nueva igual que un ingreso (ej: vendiste algo), así que cuentan para
+    // el total del mes. Los de origen 'ingreso' NO se suman aquí porque ya
+    // vienen de un ingreso que se está sumando arriba — sumarlos de nuevo
+    // sería contar la misma plata dos veces.
+    const deAportesManuales = fundings
+      .filter((f) => f.origen === 'manual' && isInMonth(f.fecha, monthKey))
+      .reduce((sum, f) => sum + Number(f.monto), 0);
+    return deIngresos + deAportesManuales;
+  }, [incomes, fundings, monthKey]);
 
   const balanceMes = totalIngresosMes - totalMes;
 
@@ -302,6 +312,11 @@ export function Dashboard() {
     }
     return nuevoIngreso;
   };
+
+  // "+ Agregar plata" a una categoría es plata NUEVA (vendiste algo, etc.).
+  // No se crea un ingreso aparte para no duplicar datos entre dos tablas
+  // (ver `totalIngresosMes` más abajo, que ya suma este tipo de aporte).
+  const handleAddFunding = addManualFunding;
 
   const closeNewRecordModal = useCallback(() => {
     setShowNewRecordModal(false);
@@ -552,7 +567,7 @@ export function Dashboard() {
         {fundingCategory && (
           <AddFundingForm
             category={fundingCategory}
-            onSubmit={addManualFunding}
+            onSubmit={handleAddFunding}
             onDone={() => setFundingCategory(null)}
           />
         )}

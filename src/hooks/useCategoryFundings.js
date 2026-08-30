@@ -29,14 +29,23 @@ export function useCategoryFundings(userId) {
   }, [fetchFundings]);
 
   // Aporte manual directo a una categoría (ej: vendiste algo y le sumas esa plata).
-  const addManualFunding = useCallback(async ({ categoryId, monto, nota }) => {
+  // `incomeId` (opcional): si este aporte viene de un ingreso creado junto con él
+  // (ver `handleAddFunding` en Dashboard), para dejarlo enlazado.
+  const addManualFunding = useCallback(async ({ categoryId, monto, nota, incomeId }) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
     const { data, error: insertError } = await withSessionRetry(() =>
       supabase
         .from('category_fundings')
-        .insert({ user_id: userId, category_id: categoryId, monto, origen: 'manual', nota: nota?.trim() || null })
+        .insert({
+          user_id: userId,
+          category_id: categoryId,
+          monto,
+          origen: 'manual',
+          nota: nota?.trim() || null,
+          income_id: incomeId || null,
+        })
         .select()
         .single()
     );
