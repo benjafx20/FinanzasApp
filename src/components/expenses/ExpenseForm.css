@@ -1,0 +1,53 @@
+.expense-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.category-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.12s ease;
+}
+
+.category-chip--active {
+  border-color: transparent;
+}
+
+.category-chip--add {
+  border-style: dashed;
+  color: var(--color-ink-soft);
+}
+
+.expense-form__funding-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.expense-form__funding-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.category-chip:active {
+  transform: scale(0.96);
+}

@@ -1,0 +1,113 @@
+.manage-categories__hint {
+  font-size: 12.5px;
+  color: var(--color-ink-soft);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.manage-categories__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  border: 1.5px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.manage-categories__add:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.manage-categories__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manage-categories__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.manage-categories__row--oculta {
+  opacity: 0.45;
+}
+
+.manage-categories__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.manage-categories__nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manage-categories__badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  background: var(--color-border);
+  padding: 2px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.manage-categories__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.manage-categories__actions button {
+  background: none;
+  border: none;
+  color: var(--color-ink-soft);
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+}
+
+.manage-categories__actions button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+
+.manage-categories__actions button:disabled {
+  opacity: 0.3;
+}
+
+.manage-categories__delete:hover:not(:disabled) {
+  background: var(--color-coral-soft) !important;
+  color: var(--color-coral) !important;
+}

@@ -1,0 +1,61 @@
+.income-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.income-split__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.income-split__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.income-split__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.income-split__input {
+  width: 90px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  text-align: right;
+}
+
+.income-split__input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.income-split__total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  text-align: right;
+}
+
+.income-split__total--error {
+  color: var(--color-coral);
+}

@@ -1,0 +1,67 @@
+.budget-card {
+  flex: 0 0 auto;
+  width: 168px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.budget-card__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.budget-card__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.budget-card__nombre {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.budget-card__saldo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+
+.budget-card__saldo--negativo {
+  color: var(--color-coral);
+}
+
+.budget-card__saldo-label {
+  font-size: 10.5px;
+  color: var(--color-ink-soft);
+  margin-bottom: 6px;
+}
+
+.budget-card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 10.5px;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  border-top: 1px solid var(--color-border);
+  padding-top: 6px;
+}

@@ -1,0 +1,54 @@
+.transfer-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transfer-history__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 12.5px;
+}
+
+.transfer-history__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.transfer-history__arrow {
+  color: var(--color-ink-soft);
+  flex-shrink: 0;
+}
+
+.transfer-history__monto {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.transfer-history__undo {
+  background: none;
+  border: none;
+  color: var(--color-ink-soft);
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.transfer-history__undo:hover {
+  color: var(--color-coral);
+}
