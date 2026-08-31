@@ -20,8 +20,8 @@ export default defineConfig({
         name: 'Mis Finanzas',
         short_name: 'Finanzas',
         description: 'Organiza tus gastos semanales y mensuales',
-        theme_color: '#7C5CFC',
-        background_color: '#FDF8FF',
+        theme_color: '#6B3FD9',
+        background_color: '#EDE4FB',
         display: 'standalone',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },

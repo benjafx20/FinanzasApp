@@ -57,6 +57,26 @@
   white-space: nowrap;
 }
 
+.ticket__pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-sun);
+  width: fit-content;
+}
+
+.ticket__pending::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-sun);
+  flex-shrink: 0;
+}
+
 .ticket__right {
   display: flex;
   flex-direction: column;

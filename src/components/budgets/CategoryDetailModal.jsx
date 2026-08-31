@@ -25,6 +25,7 @@ export function CategoryDetailModal({
   onDeleteExpense,
 }) {
   const saldoNegativo = saldo < 0;
+  const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
 
   return (
     <div className="category-detail">
@@ -38,7 +39,13 @@ export function CategoryDetailModal({
         </div>
       </div>
 
-      <span className={`category-detail__saldo ${saldoNegativo ? 'category-detail__saldo--negativo' : ''}`}>
+      {saldoBajo && (
+        <span className="category-detail__aviso">⚠ Queda poco saldo en esta categoría</span>
+      )}
+
+      <span
+        className={`category-detail__saldo ${saldoNegativo ? 'category-detail__saldo--negativo' : ''} ${saldoBajo ? 'category-detail__saldo--bajo' : ''}`}
+      >
         {formatCurrency(saldo)}
       </span>
       <span className="category-detail__saldo-label">te queda</span>

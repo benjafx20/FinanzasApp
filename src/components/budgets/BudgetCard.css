@@ -37,6 +37,26 @@
   white-space: nowrap;
 }
 
+.budget-card--bajo {
+  border-color: var(--color-sun);
+}
+
+.budget-card__aviso {
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.budget-card__saldo--bajo {
+  color: #8A6A1F;
+}
+
+@media (prefers-color-scheme: dark) {
+  .budget-card__saldo--bajo {
+    color: var(--color-sun);
+  }
+}
+
 .budget-card__saldo {
   font-family: var(--font-display);
   font-size: 22px;

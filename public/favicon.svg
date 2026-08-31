@@ -2,8 +2,8 @@
   <defs>
     <linearGradient id="bg" x1="60" y1="20" x2="452" y2="492" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#8B6BFF"/>
-      <stop offset="0.55" stop-color="#6C46E8"/>
-      <stop offset="1" stop-color="#4A2FC0"/>
+      <stop offset="0.55" stop-color="#6B3FD9"/>
+      <stop offset="1" stop-color="#4B2A9E"/>
     </linearGradient>
     <radialGradient id="sheen" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 90) rotate(90) scale(320 380)">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
@@ -28,6 +28,12 @@
   <!-- fondo -->
   <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#bg)"/>
   <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#sheen)"/>
+
+  <!-- guilloché sutil, como el grabado de un billete -->
+  <g opacity="0.08" stroke="#FFFFFF" stroke-width="1">
+    <path d="M-20,60 L532,220" /><path d="M-20,110 L532,270" /><path d="M-20,160 L532,320" />
+    <path d="M-20,210 L532,370" /><path d="M-20,260 L532,420" /><path d="M-20,310 L532,470" />
+  </g>
 
   <!-- sombra de las barras -->
   <ellipse cx="266" cy="392" rx="132" ry="16" fill="#2E1A80" opacity="0.35" filter="url(#soft)"/>

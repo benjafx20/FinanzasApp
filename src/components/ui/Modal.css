@@ -19,6 +19,8 @@
   max-height: 85vh;
   max-height: 85dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   animation: slideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

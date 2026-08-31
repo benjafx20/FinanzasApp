@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './Modal.css';
 
@@ -9,16 +9,51 @@ import './Modal.css';
 let openModalCount = 0;
 
 export function Modal({ open, onClose, title, children }) {
+  const modalSheetRef = useRef(null);
+
   useEffect(() => {
     if (!open) return;
+
     const onKeyDown = (e) => e.key === 'Escape' && onClose();
+    const onFocusIn = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!modalSheetRef.current || !modalSheetRef.current.contains(target)) return;
+      if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+
+      window.setTimeout(() => {
+        const sheet = modalSheetRef.current;
+        if (!sheet) return;
+
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+
+        const sheetRect = sheet.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const overflow = targetRect.bottom - sheetRect.bottom + 18;
+        if (overflow > 0) {
+          sheet.scrollTop += overflow;
+        }
+
+        const underflow = sheetRect.top + 18 - targetRect.top;
+        if (underflow > 0) {
+          sheet.scrollTop = Math.max(0, sheet.scrollTop - underflow);
+        }
+      }, 180);
+    };
+
     document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('focusin', onFocusIn);
 
     openModalCount++;
     document.body.style.overflow = 'hidden';
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('focusin', onFocusIn);
       openModalCount = Math.max(0, openModalCount - 1);
       if (openModalCount === 0) document.body.style.overflow = '';
     };
@@ -37,6 +72,7 @@ export function Modal({ open, onClose, title, children }) {
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={modalSheetRef}
         className="modal-sheet"
         role="dialog"
         aria-modal="true"

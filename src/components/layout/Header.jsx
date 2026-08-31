@@ -1,4 +1,5 @@
 import { formatCurrency } from '../../utils/formatCurrency';
+import { ThemeToggle } from './ThemeToggle';
 import './Header.css';
 
 export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp }) {
@@ -9,6 +10,7 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp }
       <div className="app-header__top">
         <span className="app-header__brand">💜 Mis Finanzas</span>
         <div className="app-header__actions">
+          <ThemeToggle />
           <button className="app-header__help" onClick={onShowHelp} aria-label="Ver tutorial">?</button>
           <button className="app-header__logout" onClick={onSignOut}>Salir</button>
         </div>

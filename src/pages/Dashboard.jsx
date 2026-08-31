@@ -35,6 +35,8 @@ import { ManageCategoriesModal } from '../components/categories/ManageCategories
 import { OnboardingModal } from '../components/onboarding/OnboardingModal';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { OfflineBanner } from '../components/layout/OfflineBanner';
 import { Modal } from '../components/ui/Modal';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 import {
@@ -47,6 +49,7 @@ import './Dashboard.css';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
+  const isOnline = useOnlineStatus();
   const categoriesHook = useCategories(user?.id);
   const { categories, allCategories, error: catError } = categoriesHook;
 
@@ -76,6 +79,7 @@ export function Dashboard() {
     updateExpense,
     deleteExpense,
     refetch: refetchExpenses,
+    syncPendingExpenses,
   } = useExpenses(user?.id);
   const {
     transfers,
@@ -123,6 +127,7 @@ export function Dashboard() {
   // se refresca la sesión y se vuelven a pedir todos los datos.
   useRefetchOnFocus([
     refetchExpenses,
+    syncPendingExpenses,
     refetchTransfers,
     refetchFundings,
     refetchGoals,
@@ -333,6 +338,8 @@ export function Dashboard() {
         onSignOut={signOut}
         onShowHelp={replayOnboarding}
       />
+
+      {!isOnline && <OfflineBanner />}
 
       {showOnboarding && <OnboardingModal onFinish={finishOnboarding} />}
 
