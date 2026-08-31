@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { ICON_MAP, CategoryIcon } from '../../utils/CategoryIcon';
+import { CategoryIcon } from '../../utils/CategoryIcon';
+import { ICON_MAP } from '../../utils/iconMap';
 import './CategoryForm.css';
 
 const COLOR_OPTIONS = [

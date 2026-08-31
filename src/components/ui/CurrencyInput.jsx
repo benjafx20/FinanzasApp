@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './Input.css';
 
 function formatThousands(rawDigits) {
@@ -10,10 +10,14 @@ function formatThousands(rawDigits) {
 export function CurrencyInput({ label, id, value, onChange, error, placeholder, required, autoFocus }) {
   const [display, setDisplay] = useState(value ? formatThousands(value) : '');
 
-  // Sincroniza si el value cambia desde afuera (ej: al precargar un límite existente)
-  useEffect(() => {
+  // Sincroniza si value cambia desde afuera (ej: al precargar un límite
+  // existente). Se ajusta durante el render (comparando con el valor
+  // anterior) en vez de con un useEffect, para no gastar un render extra.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setDisplay(value ? formatThousands(value) : '');
-  }, [value]);
+  }
 
   const handleChange = (e) => {
     const rawDigits = e.target.value.replace(/\D/g, '');

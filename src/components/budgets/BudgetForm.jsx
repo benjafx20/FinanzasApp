@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -7,13 +7,16 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 // gasto opcional, informativa, para un período elegido acá mismo.
 export function BudgetForm({ category, metaMensual, metaSemanal, onSubmit, onRemove, onDone }) {
   const [periodo, setPeriodo] = useState('semanal');
-  const [monto, setMonto] = useState('');
+  const [monto, setMonto] = useState(metaSemanal ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setMonto((periodo === 'mensual' ? metaMensual : metaSemanal) ?? '');
-  }, [periodo, metaMensual, metaSemanal]);
+  // En vez de "derivar" monto con un efecto cuando cambia periodo, se
+  // actualiza en el mismo evento que lo cambia (más directo, sin re-render extra).
+  const handlePeriodoChange = (nuevoPeriodo) => {
+    setPeriodo(nuevoPeriodo);
+    setMonto((nuevoPeriodo === 'mensual' ? metaMensual : metaSemanal) ?? '');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,7 +58,7 @@ export function BudgetForm({ category, metaMensual, metaSemanal, onSubmit, onRem
           { value: 'mensual', label: 'Mensual' },
         ]}
         value={periodo}
-        onChange={setPeriodo}
+        onChange={handlePeriodoChange}
       />
 
       <CurrencyInput

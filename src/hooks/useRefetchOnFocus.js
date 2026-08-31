@@ -9,7 +9,12 @@ import { supabase } from '../lib/supabaseClient';
 // a estar visible, refresca la sesión, y vuelve a pedir los datos.
 export function useRefetchOnFocus(refetchFns) {
   const refetchFnsRef = useRef(refetchFns);
-  refetchFnsRef.current = refetchFns;
+
+  // Mantiene el ref al día después de cada render (no durante el render,
+  // que React no garantiza que sea seguro).
+  useEffect(() => {
+    refetchFnsRef.current = refetchFns;
+  });
 
   useEffect(() => {
     let lastRun = 0;
