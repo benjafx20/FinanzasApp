@@ -1,12 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
 :root {
-  /* Color — morado profundo + dorado moneda, más joya que el lila plano original */
+  /* Fallback de seguridad (si por algo no se aplicó data-palette todavía).
+     El valor real de cada paleta vive en los bloques [data-palette="..."]
+     de más abajo — este bloque es solo la paleta "morado" por defecto. */
   --color-bg: #EDE4FB;
   --color-surface: #FFFFFF;
   --color-ink: #241B3D;
   --color-ink-soft: #6E6690;
   --color-primary: #6B3FD9;
+  --color-primary-light: #8A63F2;
   --color-primary-dark: #4B2A9E;
   --color-primary-soft: #EAE0FC;
   --color-mint: #06D6A0;
@@ -31,36 +34,42 @@
   --max-width: 480px;
 }
 
-/* Modo oscuro: por defecto sigue la preferencia del sistema, pero el
-   switch del header (useThemePreference) lo puede fijar a mano poniendo
-   data-theme="dark" o "light" en <html>, que manda por sobre el sistema. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-bg: #17121F;
-    --color-surface: #211A33;
-    --color-ink: #F1EEFB;
-    --color-ink-soft: #A79CC9;
-    --color-primary: #9B7DFF;
-    --color-primary-dark: #6B3FD9;
-    --color-primary-soft: #2C2249;
-    --color-mint: #2EE6B0;
-    --color-mint-soft: #113D33;
-    --color-coral: #FF8585;
-    --color-coral-soft: #3D1E22;
-    --color-sun: #FFD273;
-    --color-sun-soft: #3D2F12;
-    --color-border: #362A52;
-    --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.45);
-    --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
+/* ============================================================
+   Paletas — cada una define claro y, anidado con [data-theme="dark"],
+   su propia versión oscura. El switch de tema y el selector de paleta
+   (ver ThemeContext.jsx) ponen data-theme y data-palette en <html>;
+   un script inline en index.html hace lo mismo ANTES del primer paint
+   para que no haya parpadeo al cargar.
+   ============================================================ */
+
+/* --- Morado joya: el clásico de la app, más profundo que el lila original --- */
+:root[data-palette="morado"] {
+  --color-bg: #EDE4FB;
+  --color-surface: #FFFFFF;
+  --color-ink: #241B3D;
+  --color-ink-soft: #6E6690;
+  --color-primary: #6B3FD9;
+  --color-primary-light: #8A63F2;
+  --color-primary-dark: #4B2A9E;
+  --color-primary-soft: #EAE0FC;
+  --color-mint: #06D6A0;
+  --color-mint-soft: #E1FBF3;
+  --color-coral: #FF6B6B;
+  --color-coral-soft: #FFEBEB;
+  --color-sun: #F5B942;
+  --color-sun-soft: #FFF3DC;
+  --color-border: #DCD0F5;
+  --shadow-card: 0 2px 14px rgba(80, 50, 180, 0.12);
+  --shadow-float: 0 8px 24px rgba(107, 63, 217, 0.35);
 }
 
-:root[data-theme="dark"] {
+:root[data-palette="morado"][data-theme="dark"] {
   --color-bg: #17121F;
   --color-surface: #211A33;
   --color-ink: #F1EEFB;
   --color-ink-soft: #A79CC9;
   --color-primary: #9B7DFF;
+  --color-primary-light: #B79FFF;
   --color-primary-dark: #6B3FD9;
   --color-primary-soft: #2C2249;
   --color-mint: #2EE6B0;
@@ -74,52 +83,126 @@
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-* {
-  box-sizing: border-box;
+/* --- Vino y cuero: burdeos profundo + dorado, billetera de cuero fino --- */
+:root[data-palette="vino"] {
+  --color-bg: #EDD9D3;
+  --color-surface: #FFFBF9;
+  --color-ink: #2E1620;
+  --color-ink-soft: #7D5E63;
+  --color-primary: #7A1F3D;
+  --color-primary-light: #A63A5E;
+  --color-primary-dark: #4F1228;
+  --color-primary-soft: #F3DCE1;
+  --color-mint: #2F8F72;
+  --color-mint-soft: #DCEEE6;
+  --color-coral: #C0392B;
+  --color-coral-soft: #F6DEDA;
+  --color-sun: #D4A62B;
+  --color-sun-soft: #F8EDD0;
+  --color-border: #E0C4BC;
+  --shadow-card: 0 2px 14px rgba(122, 31, 61, 0.14);
+  --shadow-float: 0 8px 24px rgba(122, 31, 61, 0.35);
 }
 
-html {
-  overflow-x: hidden;
-  width: 100%;
+:root[data-palette="vino"][data-theme="dark"] {
+  --color-bg: #1A0E13;
+  --color-surface: #26141B;
+  --color-ink: #F5E9EA;
+  --color-ink-soft: #C2A0A8;
+  --color-primary: #C2547A;
+  --color-primary-light: #D97A98;
+  --color-primary-dark: #7A1F3D;
+  --color-primary-soft: #3A1B24;
+  --color-mint: #4CAF8E;
+  --color-mint-soft: #163027;
+  --color-coral: #E17A6C;
+  --color-coral-soft: #3A1E1A;
+  --color-sun: #E8C158;
+  --color-sun-soft: #362A10;
+  --color-border: #3D2229;
+  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
 
-html, body, #root {
-  height: 100%;
+/* --- Océano: verde azulado profundo + coral, más fresco y náutico --- */
+:root[data-palette="oceano"] {
+  --color-bg: #DFEFEC;
+  --color-surface: #FAFEFD;
+  --color-ink: #0F282A;
+  --color-ink-soft: #517577;
+  --color-primary: #0F6E73;
+  --color-primary-light: #3FAEB3;
+  --color-primary-dark: #0A4D51;
+  --color-primary-soft: #D9F0EE;
+  --color-mint: #3FA65C;
+  --color-mint-soft: #E1F5E6;
+  --color-coral: #E8604A;
+  --color-coral-soft: #FBE1DB;
+  --color-sun: #E3A73E;
+  --color-sun-soft: #FBEDD3;
+  --color-border: #C7E2DF;
+  --shadow-card: 0 2px 14px rgba(15, 110, 115, 0.14);
+  --shadow-float: 0 8px 24px rgba(15, 110, 115, 0.35);
 }
 
-#root {
-  overflow-x: hidden;
-  width: 100%;
+:root[data-palette="oceano"][data-theme="dark"] {
+  --color-bg: #0B1B1C;
+  --color-surface: #12282A;
+  --color-ink: #E7F5F4;
+  --color-ink-soft: #93B8B7;
+  --color-primary: #3FB8BE;
+  --color-primary-light: #6FD5DA;
+  --color-primary-dark: #0F6E73;
+  --color-primary-soft: #163538;
+  --color-mint: #4FCB77;
+  --color-mint-soft: #143621;
+  --color-coral: #F08669;
+  --color-coral-soft: #3A1F17;
+  --color-sun: #F0C15E;
+  --color-sun-soft: #382C10;
+  --color-border: #1F3F42;
+  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
 
-body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  width: 100%;
-  touch-action: manipulation;
+/* --- Carbón nocturno: grafito casi negro + acento lima eléctrico --- */
+:root[data-palette="carbon"] {
+  --color-bg: #E7E9EC;
+  --color-surface: #FFFFFF;
+  --color-ink: #1B2430;
+  --color-ink-soft: #5C6B7A;
+  --color-primary: #3A4756;
+  --color-primary-light: #5A6B80;
+  --color-primary-dark: #1B2430;
+  --color-primary-soft: #E4E7EB;
+  --color-mint: #2FA84F;
+  --color-mint-soft: #DFF3E3;
+  --color-coral: #E8604A;
+  --color-coral-soft: #FBE1DB;
+  --color-sun: #7FA324;
+  --color-sun-soft: #EAF4D2;
+  --color-border: #D3D8DD;
+  --shadow-card: 0 2px 14px rgba(27, 36, 48, 0.14);
+  --shadow-float: 0 8px 24px rgba(27, 36, 48, 0.35);
 }
 
-button, input, select {
-  font-family: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-/* Foco visible para accesibilidad de teclado */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+:root[data-palette="carbon"][data-theme="dark"] {
+  --color-bg: #14181D;
+  --color-surface: #1E242C;
+  --color-ink: #E7EAEE;
+  --color-ink-soft: #8E99A6;
+  --color-primary: #7C93AC;
+  --color-primary-light: #A9B8C7;
+  --color-primary-dark: #3A4756;
+  --color-primary-soft: #232B33;
+  --color-mint: #4FCB6E;
+  --color-mint-soft: #16301E;
+  --color-coral: #F0836A;
+  --color-coral-soft: #3A1E17;
+  /* acento estrella de esta paleta: lima eléctrico contra el grafito */
+  --color-sun: #C6FF3D;
+  --color-sun-soft: #2B3510;
+  --color-border: #2A323C;
+  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }

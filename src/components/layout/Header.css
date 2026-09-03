@@ -103,5 +103,5 @@
 }
 
 .app-header__balance--negativo strong {
-  color: #FFB3B3;
+  color: var(--color-coral);
 }

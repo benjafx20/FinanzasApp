@@ -1,5 +1,6 @@
 import { formatCurrency } from '../../utils/formatCurrency';
 import { ThemeToggle } from './ThemeToggle';
+import { PaletteSwitcher } from './PaletteSwitcher';
 import './Header.css';
 
 export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp }) {
@@ -8,8 +9,9 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp }
   return (
     <header className="app-header">
       <div className="app-header__top">
-        <span className="app-header__brand">💜 Mis Finanzas</span>
+        <span className="app-header__brand">👛 Mis Finanzas</span>
         <div className="app-header__actions">
+          <PaletteSwitcher />
           <ThemeToggle />
           <button className="app-header__help" onClick={onShowHelp} aria-label="Ver tutorial">?</button>
           <button className="app-header__logout" onClick={onSignOut}>Salir</button>

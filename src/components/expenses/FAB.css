@@ -5,10 +5,10 @@
   width: 62px;
   height: 62px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 25%, #b79bff 0%, #8b63f6 28%, var(--color-primary) 60%, var(--color-primary-dark) 100%);
+  background: radial-gradient(circle at 30% 25%, var(--color-primary-light) 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 12px 28px rgba(107, 73, 184, 0.42), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-float), inset 0 2px 4px rgba(255, 255, 255, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,7 +19,8 @@
 
 .fab:hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 16px 32px rgba(107, 73, 184, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-float), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+  filter: saturate(1.2);
 }
 
 .fab:active {

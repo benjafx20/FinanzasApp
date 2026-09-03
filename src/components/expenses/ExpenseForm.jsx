@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { Camera, Loader2 } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { CategoryPicker } from '../categories/CategoryPicker';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { scanReceipt } from '../../utils/scanReceipt';
 import './ExpenseForm.css';
 
 // `categoryManagement` agrupa todo lo relacionado a categorías (lista
@@ -22,6 +24,40 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
   const [fundingCategoryId, setFundingCategoryId] = useState(expense?.funding_category_id ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleScanClick = () => fileInputRef.current?.click();
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // para poder elegir la misma foto de nuevo si hace falta
+    if (!file) return;
+
+    setScanning(true);
+    setScanNotice('');
+    setError('');
+    try {
+      const { monto: montoLeido, fecha: fechaLeida } = await scanReceipt(file);
+      if (montoLeido) setMonto(montoLeido);
+      if (fechaLeida) setFecha(fechaLeida);
+
+      if (montoLeido && fechaLeida) {
+        setScanNotice('✓ Monto y fecha leídos de la boleta — revísalos y elige la categoría.');
+      } else if (montoLeido) {
+        setScanNotice('✓ Monto leído — no se pudo leer la fecha, revísala.');
+      } else if (fechaLeida) {
+        setScanNotice('✓ Fecha leída — no se pudo leer el monto, ingrésalo a mano.');
+      } else {
+        setScanNotice('No se pudo leer la boleta con claridad. Ingrésalo a mano.');
+      }
+    } catch (err) {
+      setScanNotice(err.message);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,6 +91,29 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
 
   return (
     <form onSubmit={handleSubmit} className="expense-form">
+      {!isEditing && (
+        <div className="expense-form__scan">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="expense-form__scan-input"
+            onChange={handleFileSelected}
+          />
+          <button
+            type="button"
+            className="expense-form__scan-btn"
+            onClick={handleScanClick}
+            disabled={scanning}
+          >
+            {scanning ? <Loader2 size={16} className="expense-form__scan-spinner" /> : <Camera size={16} />}
+            {scanning ? 'Leyendo la boleta…' : 'Escanear boleta'}
+          </button>
+          {scanNotice && <p className="expense-form__scan-notice">{scanNotice}</p>}
+        </div>
+      )}
+
       <CategoryPicker
         categories={categories}
         categoryId={categoryId}

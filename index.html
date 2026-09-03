@@ -14,9 +14,12 @@
     <script>
       (function () {
         try {
-          var stored = localStorage.getItem('finanzas_theme_preference');
-          var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          var storedTheme = localStorage.getItem('finanzas_theme_preference');
+          var theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
           document.documentElement.setAttribute('data-theme', theme);
+
+          var storedPalette = localStorage.getItem('finanzas_palette_preference');
+          document.documentElement.setAttribute('data-palette', storedPalette || 'morado');
         } catch (e) {}
       })();
     </script>

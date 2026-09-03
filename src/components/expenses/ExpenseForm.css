@@ -51,3 +51,47 @@
 .category-chip:active {
   transform: scale(0.96);
 }
+
+.expense-form__scan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.expense-form__scan-input {
+  display: none;
+}
+
+.expense-form__scan-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-border);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.expense-form__scan-btn:disabled {
+  opacity: 0.7;
+}
+
+.expense-form__scan-spinner {
+  animation: expense-form-spin 0.9s linear infinite;
+}
+
+@keyframes expense-form-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.expense-form__scan-notice {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  margin: 0 2px;
+}

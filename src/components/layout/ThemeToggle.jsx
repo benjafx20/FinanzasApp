@@ -1,9 +1,9 @@
 import { Sun, Moon } from 'lucide-react';
-import { useThemePreference } from '../../hooks/useThemePreference';
+import { useTheme } from '../../context/ThemeContext';
 import './ThemeToggle.css';
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useThemePreference();
+  const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
   return (
