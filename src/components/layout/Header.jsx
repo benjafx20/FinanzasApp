@@ -29,8 +29,8 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp }
         </div>
       </div>
       <div className={`app-header__balance ${balancePositivo ? '' : 'app-header__balance--negativo'}`}>
-        <span>Balance del mes</span>
-        <strong>{balancePositivo ? '+' : ''}{formatCurrency(balance)}</strong>
+        <span>Balance total</span>
+        <strong>{formatCurrency(balance)}</strong>
       </div>
     </header>
   );
