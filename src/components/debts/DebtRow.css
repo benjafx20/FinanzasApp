@@ -1,0 +1,94 @@
+.debt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.debt-row--pagado {
+  opacity: 0.55;
+}
+
+.debt-row__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.debt-row__icon--prestado {
+  background: var(--color-mint-soft);
+  color: var(--color-mint);
+}
+
+.debt-row__icon--debo {
+  background: var(--color-coral-soft);
+  color: var(--color-coral);
+}
+
+.debt-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.debt-row__persona {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debt-row__nota {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debt-row__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.debt-row__monto {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--color-ink);
+}
+
+.debt-row__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.debt-row__action {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  color: var(--color-ink-soft);
+}
+
+.debt-row__action--delete:hover,
+.debt-row__action--delete:active {
+  color: var(--color-coral);
+}

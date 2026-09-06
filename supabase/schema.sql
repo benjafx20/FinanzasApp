@@ -220,6 +220,26 @@ create table if not exists category_preferences (
   primary key (user_id, category_id)
 );
 
+-- ---------- 11. DEUDAS Y PRÉSTAMOS ENTRE PERSONAS ----------
+-- Registro simple, independiente del saldo real de las categorías (no es
+-- un gasto ni un ingreso — es plata que sigue "siendo tuya" aunque no la
+-- tengas físicamente, o que tienes pero no es tuya). 'prestado' = le
+-- prestaste plata a alguien (te deben); 'debo' = tú le debes a alguien.
+create table if not exists debts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  persona text not null,
+  tipo text not null check (tipo in ('prestado', 'debo')),
+  monto numeric(12,2) not null check (monto > 0),
+  nota text,
+  fecha date not null default current_date,
+  pagado boolean not null default false,
+  fecha_pago date,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_debts_user_id on debts(user_id);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- Sin esto, cualquier usuario autenticado podría leer/editar
@@ -236,6 +256,7 @@ alter table recurring_expenses enable row level security;
 alter table budget_transfers enable row level security;
 alter table category_preferences enable row level security;
 alter table category_fundings enable row level security;
+alter table debts enable row level security;
 
 -- Categorías: cualquiera ve las globales (user_id null) y las suyas propias.
 -- Solo puede crear/editar/eliminar las suyas (nunca las globales).
@@ -475,5 +496,32 @@ create policy "category_fundings_insert_own"
 drop policy if exists "category_fundings_delete_own" on category_fundings;
 create policy "category_fundings_delete_own"
   on category_fundings for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- Deudas y préstamos: mismo criterio, más policy de update (para marcar
+-- como pagada sin tener que borrar y recrear el registro).
+drop policy if exists "debts_select_own" on debts;
+create policy "debts_select_own"
+  on debts for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "debts_insert_own" on debts;
+create policy "debts_insert_own"
+  on debts for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "debts_update_own" on debts;
+create policy "debts_update_own"
+  on debts for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "debts_delete_own" on debts;
+create policy "debts_delete_own"
+  on debts for delete
   to authenticated
   using (auth.uid() = user_id);

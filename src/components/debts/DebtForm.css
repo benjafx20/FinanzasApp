@@ -1,0 +1,12 @@
+.debt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.debt-form__error {
+  color: var(--color-coral);
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}

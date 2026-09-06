@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useMemo, useCallback } from 'react';
+import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useExpenses } from '../hooks/useExpenses';
@@ -7,6 +7,7 @@ import { useCategoryFundings } from '../hooks/useCategoryFundings';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
 import { useIncomes } from '../hooks/useIncomes';
 import { useRecurringExpenses } from '../hooks/useRecurringExpenses';
+import { useDebts } from '../hooks/useDebts';
 import { Header } from '../components/layout/Header';
 import { BudgetCard } from '../components/budgets/BudgetCard';
 import { TransferForm } from '../components/budgets/TransferForm';
@@ -15,12 +16,16 @@ import { AddFundingForm } from '../components/budgets/AddFundingForm';
 import { CategoryDetailModal } from '../components/budgets/CategoryDetailModal';
 import { ExpenseCard } from '../components/expenses/ExpenseCard';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
+import { ExpenseCalendar } from '../components/expenses/ExpenseCalendar';
 import { FAB } from '../components/expenses/FAB';
 const MonthlyTrendChart = lazy(() =>
   import('../components/expenses/MonthlyTrendChart').then((m) => ({ default: m.MonthlyTrendChart }))
 );
 const CategoryPieChart = lazy(() =>
   import('../components/expenses/CategoryPieChart').then((m) => ({ default: m.CategoryPieChart }))
+);
+const YearComparisonChart = lazy(() =>
+  import('../components/expenses/YearComparisonChart').then((m) => ({ default: m.YearComparisonChart }))
 );
 import { RecurringExpenseForm } from '../components/expenses/RecurringExpenseForm';
 import { RecurringExpenseRow } from '../components/expenses/RecurringExpenseRow';
@@ -39,6 +44,10 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { OfflineBanner } from '../components/layout/OfflineBanner';
 import { Modal } from '../components/ui/Modal';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { MonthlySummaryModal } from '../components/summary/MonthlySummaryModal';
+import { getClosedMonths } from '../utils/monthlySummary';
+import { DebtsSection } from '../components/debts/DebtsSection';
+import { DebtForm } from '../components/debts/DebtForm';
 import {
   getCurrentMonthKey,
   getWeekRange,
@@ -66,6 +75,8 @@ export function Dashboard() {
   const [viewingCategory, setViewingCategory] = useState(null);
   const [editingCategoryDirect, setEditingCategoryDirect] = useState(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
+  const [summaryModal, setSummaryModal] = useState(null); // null | { initialMonthKey }
+  const [showDebtModal, setShowDebtModal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState('');
   const [expenseFilterCategoryId, setExpenseFilterCategoryId] = useState(null);
 
@@ -98,6 +109,7 @@ export function Dashboard() {
   } = useCategoryFundings(user?.id);
   const {
     goals,
+    contributions: savingsContributions,
     error: goalsError,
     addGoal,
     deleteGoal,
@@ -105,6 +117,14 @@ export function Dashboard() {
     totalByGoal,
     refetch: refetchGoals,
   } = useSavingsGoals(user?.id);
+  const {
+    debts,
+    error: debtsError,
+    addDebt,
+    markAsPaid: markDebtAsPaid,
+    deleteDebt,
+    refetch: refetchDebts,
+  } = useDebts(user?.id);
   const {
     incomes,
     error: incomesError,
@@ -133,6 +153,7 @@ export function Dashboard() {
     refetchGoals,
     refetchIncomes,
     refetchRecurring,
+    refetchDebts,
     categoriesHook.refetch,
   ]);
 
@@ -201,6 +222,38 @@ export function Dashboard() {
     [saldoPorCategoria]
   );
 
+  const closedMonths = useMemo(
+    () => getClosedMonths({ expenses, fundings, transfers, contributions: savingsContributions }, monthKey),
+    [expenses, fundings, transfers, savingsContributions, monthKey]
+  );
+
+  // Al abrir la app en un mes nuevo, muestra una sola vez el resumen del
+  // mes recién cerrado. Se guarda en localStorage cuál fue el último que
+  // ya se mostró, para no insistir cada vez que se abre la app.
+  useEffect(() => {
+    if (closedMonths.length === 0) return;
+    const ultimoMes = closedMonths[0];
+    let yaVisto = null;
+    try {
+      yaVisto = localStorage.getItem('finanzas_resumen_mes_visto');
+    } catch {
+      // Sin localStorage, simplemente no se auto-muestra; sigue disponible
+      // a mano desde el botón de resumen mensual.
+    }
+    if (yaVisto !== ultimoMes) {
+      setSummaryModal({ initialMonthKey: ultimoMes });
+      try {
+        localStorage.setItem('finanzas_resumen_mes_visto', ultimoMes);
+      } catch {
+        // Idem — si falla, se podría volver a mostrar la próxima vez, no
+        // es grave.
+      }
+    }
+    // Solo debe correr cuando cambia la lista de meses cerrados (ej: al
+    // cargar los datos por primera vez), no cada vez que se re-renderiza.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closedMonths]);
+
   const expensesDeCategoriaEnDetalle = useMemo(() => {
     if (!viewingCategory) return [];
     return expenses.filter((e) => e.category_id === viewingCategory.id);
@@ -250,6 +303,23 @@ export function Dashboard() {
     if (!confirm('¿Eliminar esta meta? Se perderá el historial de aportes.')) return;
     try {
       await deleteGoal(id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleMarkDebtPaid = async (id) => {
+    try {
+      await markDebtAsPaid(id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteDebt = async (id) => {
+    if (!confirm('¿Eliminar este registro?')) return;
+    try {
+      await deleteDebt(id);
     } catch (err) {
       alert(err.message);
     }
@@ -394,6 +464,15 @@ export function Dashboard() {
 
         <section className="dashboard__section">
           <div className="dashboard__section-header">
+            <h2 className="dashboard__section-title">Deudas y préstamos</h2>
+            <button className="dashboard__add-link" onClick={() => setShowDebtModal(true)}>+ Nueva</button>
+          </div>
+          {debtsError && <p className="dashboard__error">{debtsError}</p>}
+          <DebtsSection debts={debts} onMarkPaid={handleMarkDebtPaid} onDelete={handleDeleteDebt} />
+        </section>
+
+        <section className="dashboard__section">
+          <div className="dashboard__section-header">
             <h2 className="dashboard__section-title">Gastos recurrentes</h2>
             <button className="dashboard__add-link" onClick={() => setShowRecurringModal(true)}>+ Nuevo</button>
           </div>
@@ -415,9 +494,24 @@ export function Dashboard() {
         </section>
 
         <section className="dashboard__section">
-          <h2 className="dashboard__section-title">Tendencia (últimos 6 meses)</h2>
+          <div className="dashboard__section-header">
+            <h2 className="dashboard__section-title">Tendencia (últimos 6 meses)</h2>
+            <button
+              className="dashboard__add-link"
+              onClick={() => setSummaryModal({ initialMonthKey: closedMonths[0] || null })}
+            >
+              📅 Resumen mensual
+            </button>
+          </div>
           <Suspense fallback={<div className="trend-chart-skeleton" />}>
             <MonthlyTrendChart expenses={expenses} />
+          </Suspense>
+        </section>
+
+        <section className="dashboard__section">
+          <h2 className="dashboard__section-title">Este año vs el año pasado</h2>
+          <Suspense fallback={<div className="trend-chart-skeleton" />}>
+            <YearComparisonChart expenses={expenses} />
           </Suspense>
         </section>
 
@@ -465,6 +559,11 @@ export function Dashboard() {
               ))}
             </div>
           )}
+        </section>
+
+        <section className="dashboard__section">
+          <h2 className="dashboard__section-title">Calendario de gastos</h2>
+          <ExpenseCalendar expenses={expenses} onEdit={setEditingExpense} onDelete={handleDelete} />
         </section>
       </main>
 
@@ -520,6 +619,10 @@ export function Dashboard() {
 
       <Modal open={showGoalModal} onClose={() => setShowGoalModal(false)} title="Nueva meta de ahorro">
         <GoalForm onSubmit={addGoal} onDone={() => setShowGoalModal(false)} />
+      </Modal>
+
+      <Modal open={showDebtModal} onClose={() => setShowDebtModal(false)} title="Deuda o préstamo">
+        <DebtForm onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
       </Modal>
 
       <Modal
@@ -630,6 +733,18 @@ export function Dashboard() {
           onAdd={categoriesHook.addCategory}
         />
       </Modal>
+
+      <MonthlySummaryModal
+        open={!!summaryModal}
+        onClose={() => setSummaryModal(null)}
+        closedMonths={closedMonths}
+        initialMonthKey={summaryModal?.initialMonthKey}
+        expenses={expenses}
+        fundings={fundings}
+        transfers={transfers}
+        contributions={savingsContributions}
+        categories={allCategories}
+      />
     </div>
   );
 }

@@ -1,0 +1,61 @@
+.debts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.debts-section__totales {
+  display: flex;
+  gap: 10px;
+}
+
+.debts-section__total {
+  flex: 1;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.debts-section__total span {
+  font-size: 11.5px;
+  color: var(--color-ink-soft);
+}
+
+.debts-section__total strong {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.debts-section__total--mint {
+  color: var(--color-mint);
+}
+
+.debts-section__total--coral {
+  color: var(--color-coral);
+}
+
+.debts-section__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.debts-section__vacio {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+.debts-section__toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+}

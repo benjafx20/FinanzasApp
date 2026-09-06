@@ -1,0 +1,29 @@
+.trend-chart {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+  padding: 12px 8px 4px;
+}
+
+.year-tooltip {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: 6px 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.year-tooltip__mes {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.year-tooltip__monto {
+  font-family: var(--font-mono);
+}
