@@ -32,7 +32,6 @@ export function AddFundingForm({ category, onSubmit, onDone }) {
         onChange={setMonto}
         placeholder="0"
         required
-        autoFocus
       />
       <Input
         id="funding-nota"

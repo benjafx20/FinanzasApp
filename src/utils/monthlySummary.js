@@ -19,7 +19,7 @@ export function mesAnteriorA(monthKey) {
 // Todos los meses con algún movimiento (gasto, aporte, traspaso o ahorro),
 // sin contar el mes actual (ese no está "cerrado" todavía), del más
 // reciente al más antiguo.
-export function getClosedMonths({ expenses, fundings, transfers, contributions }, currentMonthKey) {
+export function getClosedMonths({ expenses = [], fundings = [], transfers = [], contributions = [] }, currentMonthKey) {
   const keys = new Set();
   for (const e of expenses) keys.add(e.fecha.slice(0, 7));
   for (const f of fundings) keys.add(f.fecha.slice(0, 7));
@@ -29,7 +29,7 @@ export function getClosedMonths({ expenses, fundings, transfers, contributions }
   return Array.from(keys).sort().reverse();
 }
 
-export function buildMonthlySummary({ monthKey, expenses, fundings, transfers, contributions, categories }) {
+export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], transfers = [], contributions = [], categories = [] }) {
   const enEsteMes = (fecha) => fecha.slice(0, 7) === monthKey;
   const corte = ultimoDiaDelMes(monthKey);
   const hastaElCorte = (fecha) => fecha <= corte;

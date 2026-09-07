@@ -54,7 +54,6 @@ export function IncomeForm({ income, categories, onSubmit, onDone }) {
         onChange={setMonto}
         placeholder="0"
         required
-        autoFocus={!isEditing}
       />
       <Input
         id="income-fecha"

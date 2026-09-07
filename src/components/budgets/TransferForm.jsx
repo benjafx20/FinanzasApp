@@ -61,7 +61,7 @@ export function TransferForm({ fromCategory, disponibleOrigen, categories, onSub
         </select>
       </div>
 
-      <CurrencyInput id="transfer-monto" label="Monto a mover" value={monto} onChange={setMonto} placeholder="0" required autoFocus />
+      <CurrencyInput id="transfer-monto" label="Monto a mover" value={monto} onChange={setMonto} placeholder="0" required />
 
       <Input
         id="transfer-nota"

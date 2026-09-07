@@ -79,5 +79,5 @@ export function useSavingsGoals(userId) {
     [contributions]
   );
 
-  return { goals, loading, error, addGoal, deleteGoal, addContribution, totalByGoal, refetch: fetchAll };
+  return { goals, contributions, loading, error, addGoal, deleteGoal, addContribution, totalByGoal, refetch: fetchAll };
 }

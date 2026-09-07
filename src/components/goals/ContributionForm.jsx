@@ -30,7 +30,6 @@ export function ContributionForm({ goal, onSubmit, onDone }) {
         onChange={setMonto}
         placeholder="Ej: 20.000"
         required
-        autoFocus
       />
       {error && <p className="auth-error" role="alert">{error}</p>}
       <Button type="submit" fullWidth disabled={loading}>

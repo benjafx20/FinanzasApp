@@ -49,7 +49,6 @@ export function DebtForm({ onSubmit, onDone }) {
         onChange={(e) => setPersona(e.target.value)}
         placeholder="Ej: Juan, mi hermana..."
         required
-        autoFocus
       />
 
       <CurrencyInput

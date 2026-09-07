@@ -134,7 +134,6 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
         onChange={setMonto}
         placeholder="0"
         required
-        autoFocus={!isEditing}
       />
 
       <Input

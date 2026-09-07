@@ -68,7 +68,6 @@ export function BudgetForm({ category, metaMensual, metaSemanal, onSubmit, onRem
         onChange={setMonto}
         placeholder="Ej: 20.000"
         required
-        autoFocus
       />
 
       {error && <p className="auth-error" role="alert">{error}</p>}
