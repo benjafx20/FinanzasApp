@@ -22,7 +22,8 @@
 .app-header__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 .app-header__help {
@@ -34,16 +35,21 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .app-header__logout {
   background: rgba(255, 255, 255, 0.15);
   border: none;
   color: white;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .app-header__summary {

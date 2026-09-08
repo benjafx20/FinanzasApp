@@ -19,17 +19,18 @@ export function mesAnteriorA(monthKey) {
 // Todos los meses con algún movimiento (gasto, aporte, traspaso o ahorro),
 // sin contar el mes actual (ese no está "cerrado" todavía), del más
 // reciente al más antiguo.
-export function getClosedMonths({ expenses = [], fundings = [], transfers = [], contributions = [] }, currentMonthKey) {
+export function getClosedMonths({ expenses = [], fundings = [], transfers = [], contributions = [], debts = [] }, currentMonthKey) {
   const keys = new Set();
   for (const e of expenses) keys.add(e.fecha.slice(0, 7));
   for (const f of fundings) keys.add(f.fecha.slice(0, 7));
   for (const t of transfers) keys.add(t.fecha.slice(0, 7));
   for (const c of contributions) keys.add(c.fecha.slice(0, 7));
+  for (const d of debts) keys.add(d.fecha.slice(0, 7));
   keys.delete(currentMonthKey);
   return Array.from(keys).sort().reverse();
 }
 
-export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], transfers = [], contributions = [], categories = [] }) {
+export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], transfers = [], contributions = [], debts = [], categories = [] }) {
   const enEsteMes = (fecha) => fecha.slice(0, 7) === monthKey;
   const corte = ultimoDiaDelMes(monthKey);
   const hastaElCorte = (fecha) => fecha <= corte;
@@ -94,6 +95,21 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     balanceAlCierre += aportes + neto - gastado;
   }
 
+  // Deudas/préstamos que seguían activos (sin saldar) al cierre de ESE
+  // mes: ya existían para entonces, y si se pagaron, fue después del
+  // cierre (si se pagaron antes, ya no estaban activas en ese momento).
+  const deudasActivasAlCierre = debts.filter((d) => {
+    if (d.fecha > corte) return false;
+    if (!d.pagado) return true;
+    return Boolean(d.fecha_pago && d.fecha_pago > corte);
+  });
+  const totalTeDebenAlCierre = deudasActivasAlCierre
+    .filter((d) => d.tipo === 'prestado')
+    .reduce((sum, d) => sum + Number(d.monto), 0);
+  const totalDebesAlCierre = deudasActivasAlCierre
+    .filter((d) => d.tipo === 'debo')
+    .reduce((sum, d) => sum + Number(d.monto), 0);
+
   return {
     monthKey,
     totalGastado,
@@ -102,5 +118,7 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     categoriaTopMonto,
     ahorroLogrado,
     balanceAlCierre,
+    totalTeDebenAlCierre,
+    totalDebesAlCierre,
   };
 }

@@ -1,5 +1,5 @@
 import { Undo2, TrendingUp, Wallet } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './FundingHistory.css';
 
 export function FundingHistory({ fundings, onUndo }) {
@@ -16,7 +16,7 @@ export function FundingHistory({ fundings, onUndo }) {
             {f.origen === 'ingreso' ? 'De un ingreso repartido' : 'Agregado a mano'}
             {f.nota && ` · ${f.nota}`}
           </span>
-          <span className="funding-history__monto">+{formatCurrency(f.monto)}</span>
+          <span className="funding-history__monto">+<Amount value={f.monto} /></span>
           <button
             type="button"
             className="funding-history__undo"

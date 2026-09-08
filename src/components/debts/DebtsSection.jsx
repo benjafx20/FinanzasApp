@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { DebtRow } from './DebtRow';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './DebtsSection.css';
 
 export function DebtsSection({ debts, onMarkPaid, onDelete }) {
@@ -20,11 +20,11 @@ export function DebtsSection({ debts, onMarkPaid, onDelete }) {
       <div className="debts-section__totales">
         <div className="debts-section__total">
           <span>Te deben</span>
-          <strong className="debts-section__total--mint">{formatCurrency(totalTeDeben)}</strong>
+          <strong className="debts-section__total--mint"><Amount value={totalTeDeben} /></strong>
         </div>
         <div className="debts-section__total">
           <span>Debes</span>
-          <strong className="debts-section__total--coral">{formatCurrency(totalDebes)}</strong>
+          <strong className="debts-section__total--coral"><Amount value={totalDebes} /></strong>
         </div>
       </div>
 

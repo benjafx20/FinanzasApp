@@ -1,5 +1,5 @@
 import { CategoryIcon } from '../../utils/CategoryIcon';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './BudgetCard.css';
 
 // `asignado`: total que le has metido a esta categoría (ingresos repartidos
@@ -31,14 +31,14 @@ export function BudgetCard({ category, asignado, saldo, gastadoSemana, gastadoMe
       <span
         className={`budget-card__saldo ${saldoNegativo ? 'budget-card__saldo--negativo' : ''} ${saldoBajo ? 'budget-card__saldo--bajo' : ''}`}
       >
-        {formatCurrency(saldo)}
+        <Amount value={saldo} />
       </span>
       <span className="budget-card__saldo-label">te queda</span>
 
       <div className="budget-card__stats">
-        <span>Asignado: {formatCurrency(asignado)}</span>
-        <span>Semana: {formatCurrency(gastadoSemana)}</span>
-        <span>Mes: {formatCurrency(gastadoMes)}</span>
+        <span>Asignado: <Amount value={asignado} /></span>
+        <span>Semana: <Amount value={gastadoSemana} /></span>
+        <span>Mes: <Amount value={gastadoMes} /></span>
       </div>
     </button>
   );

@@ -1,5 +1,5 @@
 import { TrendingUp } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import '../expenses/ExpenseCard.css';
 
 export function IncomeCard({ income, onEdit, onDelete }) {
@@ -23,7 +23,7 @@ export function IncomeCard({ income, onEdit, onDelete }) {
         </div>
         <div className="ticket__right">
           <span className="ticket__monto" style={{ color: 'var(--color-mint)' }}>
-            +{formatCurrency(income.monto)}
+            +<Amount value={income.monto} />
           </span>
           <span className="ticket__fecha">{fecha}</span>
         </div>

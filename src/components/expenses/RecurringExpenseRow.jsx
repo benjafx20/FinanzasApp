@@ -1,5 +1,5 @@
 import { CategoryIcon } from '../../utils/CategoryIcon';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './RecurringExpenseRow.css';
 
 export function RecurringExpenseRow({ recurring, onToggle, onDelete }) {
@@ -12,7 +12,7 @@ export function RecurringExpenseRow({ recurring, onToggle, onDelete }) {
       </div>
       <div className="recurring-row__info">
         <span className="recurring-row__nombre">{recurring.nombre}</span>
-        <span className="recurring-row__detalle">Día {recurring.dia_mes} · {formatCurrency(recurring.monto)}</span>
+        <span className="recurring-row__detalle">Día {recurring.dia_mes} · <Amount value={recurring.monto} /></span>
       </div>
       <label className="recurring-row__switch">
         <input

@@ -1,5 +1,5 @@
 import { Check, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './DebtRow.css';
 
 // tipo 'prestado' = te deben (plata que sigue siendo tuya).
@@ -19,7 +19,7 @@ export function DebtRow({ debt, onMarkPaid, onDelete }) {
       </div>
 
       <div className="debt-row__right">
-        <span className="debt-row__monto">{formatCurrency(debt.monto)}</span>
+        <span className="debt-row__monto"><Amount value={debt.monto} /></span>
         {!debt.pagado && (
           <div className="debt-row__actions">
             <button

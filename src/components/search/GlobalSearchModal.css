@@ -1,0 +1,138 @@
+.global-search {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.global-search__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.global-search__input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--color-ink-soft);
+}
+
+.global-search__input {
+  width: 100%;
+  padding: 12px 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.global-search__clear {
+  position: absolute;
+  right: 10px;
+  color: var(--color-ink-soft);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.global-search__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  margin: 4px 0;
+}
+
+.global-search__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.global-search__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.global-search__item--sin-click {
+  opacity: 0.85;
+}
+
+.global-search__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.global-search__icon--mint {
+  background: var(--color-mint-soft);
+  color: var(--color-mint);
+}
+
+.global-search__icon--coral {
+  background: var(--color-coral-soft);
+  color: var(--color-coral);
+}
+
+.global-search__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.global-search__titulo {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__subtitulo {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.global-search__monto {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+
+.global-search__fecha {
+  font-size: 11px;
+  color: var(--color-ink-soft);
+}

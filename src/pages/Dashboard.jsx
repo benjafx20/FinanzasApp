@@ -48,6 +48,7 @@ import { MonthlySummaryModal } from '../components/summary/MonthlySummaryModal';
 import { getClosedMonths } from '../utils/monthlySummary';
 import { DebtsSection } from '../components/debts/DebtsSection';
 import { DebtForm } from '../components/debts/DebtForm';
+import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
 import {
   getCurrentMonthKey,
   getWeekRange,
@@ -77,6 +78,7 @@ export function Dashboard() {
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [summaryModal, setSummaryModal] = useState(null); // null | { initialMonthKey }
   const [showDebtModal, setShowDebtModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState('');
   const [expenseFilterCategoryId, setExpenseFilterCategoryId] = useState(null);
 
@@ -223,8 +225,8 @@ export function Dashboard() {
   );
 
   const closedMonths = useMemo(
-    () => getClosedMonths({ expenses, fundings, transfers, contributions: savingsContributions }, monthKey),
-    [expenses, fundings, transfers, savingsContributions, monthKey]
+    () => getClosedMonths({ expenses, fundings, transfers, contributions: savingsContributions, debts }, monthKey),
+    [expenses, fundings, transfers, savingsContributions, debts, monthKey]
   );
 
   // Al abrir la app en un mes nuevo, muestra una sola vez el resumen del
@@ -400,6 +402,7 @@ export function Dashboard() {
         balance={balanceTotal}
         onSignOut={signOut}
         onShowHelp={replayOnboarding}
+        onShowSearch={() => setShowSearchModal(true)}
       />
 
       {!isOnline && <OfflineBanner />}
@@ -625,6 +628,17 @@ export function Dashboard() {
         <DebtForm onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
       </Modal>
 
+      <GlobalSearchModal
+        open={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        expenses={expenses}
+        incomes={incomes}
+        debts={debts}
+        categories={allCategories}
+        onSelectExpense={setEditingExpense}
+        onSelectIncome={setEditingIncome}
+      />
+
       <Modal
         open={!!contributingGoal}
         onClose={() => setContributingGoal(null)}
@@ -743,6 +757,7 @@ export function Dashboard() {
         fundings={fundings}
         transfers={transfers}
         contributions={savingsContributions}
+        debts={debts}
         categories={allCategories}
       />
     </div>

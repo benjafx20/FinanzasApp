@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './GoalCard.css';
 
 export function GoalCard({ goal, acumulado, onAportar, onDelete }) {
@@ -35,8 +35,8 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete }) {
       </div>
 
       <div className="goal-card__montos">
-        <span className="goal-card__acumulado">{formatCurrency(acumulado)}</span>
-        <span className="goal-card__objetivo"> de {formatCurrency(goal.monto_objetivo)}</span>
+        <span className="goal-card__acumulado"><Amount value={acumulado} /></span>
+        <span className="goal-card__objetivo"> de <Amount value={goal.monto_objetivo} /></span>
       </div>
 
       {!completa && (

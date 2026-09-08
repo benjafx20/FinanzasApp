@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ExpenseCard } from './ExpenseCard';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './ExpenseCalendar.css';
 
 const DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -101,7 +101,7 @@ export function ExpenseCalendar({ expenses, onEdit, onDelete }) {
         <div className="expense-calendar__detalle">
           <div className="expense-calendar__detalle-header">
             <span>{new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-            <strong>{formatCurrency(totalDiaSeleccionado)}</strong>
+            <strong><Amount value={totalDiaSeleccionado} /></strong>
           </div>
           {gastosDelDiaSeleccionado.length === 0 ? (
             <p className="dashboard__empty">Sin gastos ese día.</p>

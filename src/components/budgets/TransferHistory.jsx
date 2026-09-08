@@ -1,6 +1,6 @@
 import { ArrowRight, Undo2 } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './TransferHistory.css';
 
 export function TransferHistory({ transfers, onUndo }) {
@@ -19,7 +19,7 @@ export function TransferHistory({ transfers, onUndo }) {
             <CategoryIcon name={t.destino?.icono} size={14} />
             {t.destino?.nombre ?? 'Categoría eliminada'}
           </span>
-          <span className="transfer-history__monto">{formatCurrency(t.monto)}</span>
+          <span className="transfer-history__monto"><Amount value={t.monto} /></span>
           <button
             type="button"
             className="transfer-history__undo"

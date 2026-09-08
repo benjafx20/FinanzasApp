@@ -1,5 +1,5 @@
 import { CategoryIcon } from '../../utils/CategoryIcon';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import './ExpenseCard.css';
 
 export function ExpenseCard({ expense, onEdit, onDelete }) {
@@ -27,7 +27,7 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
           {expense.pending && <span className="ticket__pending">Sin sincronizar</span>}
         </div>
         <div className="ticket__right">
-          <span className="ticket__monto">{formatCurrency(expense.monto)}</span>
+          <span className="ticket__monto"><Amount value={expense.monto} /></span>
           <span className="ticket__fecha">{fecha}</span>
         </div>
       </button>

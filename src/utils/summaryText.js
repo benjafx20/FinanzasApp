@@ -40,6 +40,14 @@ export function generarResumenConversado(stats, formatCurrency) {
     frases.push(`Y alcanzaste a guardar ${formatCurrency(stats.ahorroLogrado)} en tus metas de ahorro. ¡Eso suma! 💪`);
   }
 
+  if (stats.totalTeDebenAlCierre > 0 && stats.totalDebesAlCierre > 0) {
+    frases.push(`En ese momento te debían ${formatCurrency(stats.totalTeDebenAlCierre)} y tú debías ${formatCurrency(stats.totalDebesAlCierre)}.`);
+  } else if (stats.totalTeDebenAlCierre > 0) {
+    frases.push(`Y te seguían debiendo ${formatCurrency(stats.totalTeDebenAlCierre)} en préstamos pendientes.`);
+  } else if (stats.totalDebesAlCierre > 0) {
+    frases.push(`Ojo que en ese momento tú debías ${formatCurrency(stats.totalDebesAlCierre)}.`);
+  }
+
   const balanceFrase = stats.balanceAlCierre >= 0
     ? `Terminaste el mes con ${formatCurrency(stats.balanceAlCierre)} de balance total.`
     : `Terminaste el mes en rojo: ${formatCurrency(stats.balanceAlCierre)} de balance total.`;

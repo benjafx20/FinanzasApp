@@ -79,6 +79,39 @@
   margin-top: 4px;
 }
 
+.monthly-summary__compartir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.monthly-summary__compartir:disabled {
+  opacity: 0.75;
+}
+
+.monthly-summary__spin {
+  animation: monthly-summary-spin 0.9s linear infinite;
+}
+
+@keyframes monthly-summary-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.monthly-summary__share-error {
+  color: var(--color-coral);
+  font-size: 12.5px;
+  margin: -8px 0 0;
+}
+
 .monthly-summary__lista {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,5 @@
 import { CategoryIcon } from '../../utils/CategoryIcon';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { Amount } from '../ui/Amount';
 import { ExpenseCard } from '../expenses/ExpenseCard';
 import { FundingHistory } from './FundingHistory';
 import './CategoryDetailModal.css';
@@ -46,14 +46,14 @@ export function CategoryDetailModal({
       <span
         className={`category-detail__saldo ${saldoNegativo ? 'category-detail__saldo--negativo' : ''} ${saldoBajo ? 'category-detail__saldo--bajo' : ''}`}
       >
-        {formatCurrency(saldo)}
+        <Amount value={saldo} />
       </span>
       <span className="category-detail__saldo-label">te queda</span>
 
       <div className="category-detail__stats">
-        <span>Asignado en total: <strong>{formatCurrency(asignado)}</strong></span>
-        <span>Gastado esta semana: <strong>{formatCurrency(gastadoSemana)}</strong></span>
-        <span>Gastado este mes: <strong>{formatCurrency(gastadoMes)}</strong></span>
+        <span>Asignado en total: <strong><Amount value={asignado} /></strong></span>
+        <span>Gastado esta semana: <strong><Amount value={gastadoSemana} /></strong></span>
+        <span>Gastado este mes: <strong><Amount value={gastadoMes} /></strong></span>
       </div>
 
       <div className="category-detail__actions">
