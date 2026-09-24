@@ -10,35 +10,28 @@ export function BudgetCard({ category, asignado, saldo, gastadoSemana, gastadoMe
   const saldoNegativo = saldo < 0;
   // Avisa cuando queda 20% o menos del total asignado (y no está ya en rojo).
   const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
+  const estado = saldoNegativo ? 'budget-card--negativo' : saldoBajo ? 'budget-card--bajo' : '';
 
   return (
     <button
-      className={`budget-card ${saldoBajo ? 'budget-card--bajo' : ''}`}
+      className={`budget-card ${estado}`}
       onClick={onEdit}
+      style={{ '--card-color': category.color }}
     >
+      <CategoryIcon name={category.icono} size={72} className="budget-card__marca" />
+
       <div className="budget-card__top">
-        <div className="budget-card__icon" style={{ background: `${category.color}22`, color: category.color }}>
-          <CategoryIcon name={category.icono} size={16} />
-        </div>
-        <span className="budget-card__nombre">{category.nombre}</span>
-        {saldoBajo && (
-          <span className="budget-card__aviso" title="Queda poco saldo en esta categoría">
-            ⚠
-          </span>
-        )}
+        <span className="budget-card__nombre"><CategoryIcon name={category.icono} size={13} /> {category.nombre}</span>
+        {(saldoBajo || saldoNegativo) && <span className="budget-card__aviso">⚠</span>}
       </div>
 
-      <span
-        className={`budget-card__saldo ${saldoNegativo ? 'budget-card__saldo--negativo' : ''} ${saldoBajo ? 'budget-card__saldo--bajo' : ''}`}
-      >
-        <Amount value={saldo} />
-      </span>
       <span className="budget-card__saldo-label">te queda</span>
+      <span className="budget-card__saldo"><Amount value={saldo} /></span>
 
       <div className="budget-card__stats">
-        <span>Asignado: <Amount value={asignado} /></span>
-        <span>Semana: <Amount value={gastadoSemana} /></span>
-        <span>Mes: <Amount value={gastadoMes} /></span>
+        <div><span>Asignado</span><b><Amount value={asignado} /></b></div>
+        <div><span>Semana</span><b><Amount value={gastadoSemana} /></b></div>
+        <div><span>Mes</span><b><Amount value={gastadoMes} /></b></div>
       </div>
     </button>
   );

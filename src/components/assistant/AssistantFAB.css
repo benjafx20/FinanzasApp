@@ -1,0 +1,21 @@
+.assistant-fab {
+  position: fixed;
+  bottom: 26px;
+  left: 26px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  transition: transform 0.15s ease;
+}
+
+.assistant-fab:active {
+  transform: scale(0.94);
+}

@@ -49,6 +49,9 @@ import { getClosedMonths } from '../utils/monthlySummary';
 import { DebtsSection } from '../components/debts/DebtsSection';
 import { DebtForm } from '../components/debts/DebtForm';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
+import { AssistantModal } from '../components/assistant/AssistantModal';
+import { AssistantFAB } from '../components/assistant/AssistantFAB';
+import { buildFinancialContext } from '../utils/buildFinancialContext';
 import {
   getCurrentMonthKey,
   getWeekRange,
@@ -79,6 +82,9 @@ export function Dashboard() {
   const [summaryModal, setSummaryModal] = useState(null); // null | { initialMonthKey }
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [expenseLimit, setExpenseLimit] = useState(10);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState('');
   const [expenseFilterCategoryId, setExpenseFilterCategoryId] = useState(null);
 
@@ -222,6 +228,22 @@ export function Dashboard() {
   const balanceTotal = useMemo(
     () => Object.values(saldoPorCategoria).reduce((sum, s) => sum + s, 0),
     [saldoPorCategoria]
+  );
+
+  const financialContext = useMemo(
+    () => buildFinancialContext({
+      expenses,
+      incomes,
+      categories: allCategories,
+      saldoPorCategoria,
+      asignadoPorCategoria,
+      debts,
+      goals,
+      totalByGoal,
+      balanceTotal,
+      monthKey,
+    }),
+    [expenses, incomes, allCategories, saldoPorCategoria, asignadoPorCategoria, debts, goals, totalByGoal, balanceTotal, monthKey]
   );
 
   const closedMonths = useMemo(
@@ -557,19 +579,32 @@ export function Dashboard() {
             <p className="dashboard__empty">Ningún gasto calza con ese filtro.</p>
           ) : (
             <div className="expense-list">
-              {expensesFiltrados.map((exp) => (
+              {expensesFiltrados.slice(0, expenseLimit).map((exp) => (
                 <ExpenseCard key={exp.id} expense={exp} onEdit={setEditingExpense} onDelete={handleDelete} />
               ))}
+              {expensesFiltrados.length > expenseLimit && (
+                <button className="dashboard__ver-mas" onClick={() => setExpenseLimit((n) => n + 15)}>
+                  Ver más ({expensesFiltrados.length - expenseLimit} restantes)
+                </button>
+              )}
             </div>
           )}
         </section>
 
         <section className="dashboard__section">
-          <h2 className="dashboard__section-title">Calendario de gastos</h2>
-          <ExpenseCalendar expenses={expenses} onEdit={setEditingExpense} onDelete={handleDelete} />
+          <div className="dashboard__section-header">
+            <h2 className="dashboard__section-title">Calendario de gastos</h2>
+            <button className="dashboard__add-link" onClick={() => setShowCalendar((v) => !v)}>
+              {showCalendar ? 'Ocultar' : 'Ver calendario'}
+            </button>
+          </div>
+          {showCalendar && (
+            <ExpenseCalendar expenses={expenses} onEdit={setEditingExpense} onDelete={handleDelete} />
+          )}
         </section>
       </main>
 
+      <AssistantFAB onClick={() => setShowAssistant(true)} />
       <FAB onClick={() => setShowNewRecordModal(true)} />
 
       <Modal open={showNewRecordModal} onClose={closeNewRecordModal} title="Nuevo registro">
@@ -637,6 +672,12 @@ export function Dashboard() {
         categories={allCategories}
         onSelectExpense={setEditingExpense}
         onSelectIncome={setEditingIncome}
+      />
+
+      <AssistantModal
+        open={showAssistant}
+        onClose={() => setShowAssistant(false)}
+        context={financialContext}
       />
 
       <Modal

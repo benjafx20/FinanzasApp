@@ -75,6 +75,18 @@
   font-weight: 600;
 }
 
+.dashboard__ver-mas {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  text-align: center;
+  margin-top: 4px;
+}
+
 .budget-scroll {
   display: flex;
   gap: 12px;

@@ -34,7 +34,7 @@ export function MonthlySummaryModal({
   }, [monthKey, expenses, fundings, transfers, contributions, debts, categories]);
 
   const frases = useMemo(
-    () => (stats ? generarResumenConversado(stats, formatCurrency) : []),
+    () => (stats ? generarResumenConversado(stats) : []),
     [stats]
   );
 
@@ -80,8 +80,14 @@ export function MonthlySummaryModal({
       {monthKey && stats ? (
         <div className="monthly-summary">
           <div className="monthly-summary__frases">
-            {frases.map((f) => (
-              <p key={f}>{f}</p>
+            {frases.map((partes, i) => (
+              <p key={i}>
+                {partes.map((parte, j) =>
+                  typeof parte === 'string'
+                    ? <span key={j}>{parte}</span>
+                    : <Amount key={j} value={parte.monto} />
+                )}
+              </p>
             ))}
           </div>
 

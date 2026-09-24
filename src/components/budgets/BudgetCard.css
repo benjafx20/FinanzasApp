@@ -1,44 +1,55 @@
 .budget-card {
   flex: 0 0 auto;
-  width: 168px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: 14px;
+  width: 176px;
+  background: linear-gradient(155deg, var(--card-color), color-mix(in srgb, var(--card-color) 65%, black));
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 10px 20px -8px color-mix(in srgb, var(--card-color) 55%, transparent);
+  padding: 14px 15px;
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  position: relative;
+  overflow: hidden;
+  color: white;
+}
+
+.budget-card__marca {
+  position: absolute;
+  right: -10px;
+  bottom: -14px;
+  opacity: 0.16;
+  transform: rotate(-8deg);
 }
 
 .budget-card__top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.budget-card__icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  gap: 6px;
+  margin-bottom: 10px;
+  position: relative;
 }
 
 .budget-card__nombre {
-  font-size: 13px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 0.95;
 }
 
 .budget-card--bajo {
-  border-color: var(--color-sun);
+  box-shadow: 0 0 0 2px var(--color-sun), 0 10px 20px -8px color-mix(in srgb, var(--card-color) 55%, transparent);
+}
+
+.budget-card--negativo {
+  box-shadow: 0 0 0 2px var(--color-coral), 0 10px 20px -8px color-mix(in srgb, var(--card-color) 55%, transparent);
 }
 
 .budget-card__aviso {
@@ -47,41 +58,50 @@
   flex-shrink: 0;
 }
 
-.budget-card__saldo--bajo {
-  color: #8A6A1F;
-}
-
-@media (prefers-color-scheme: dark) {
-  .budget-card__saldo--bajo {
-    color: var(--color-sun);
-  }
+.budget-card__saldo-label {
+  font-size: 9.5px;
+  opacity: 0.8;
+  position: relative;
 }
 
 .budget-card__saldo {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-size: 22px;
-  font-weight: 600;
-  color: var(--color-ink);
-  line-height: 1.1;
-}
-
-.budget-card__saldo--negativo {
-  color: var(--color-coral);
-}
-
-.budget-card__saldo-label {
-  font-size: 10.5px;
-  color: var(--color-ink-soft);
-  margin-bottom: 6px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  position: relative;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .budget-card__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  font-size: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  padding-top: 8px;
+  position: relative;
+}
+
+.budget-card__stats div {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  font-size: 10.5px;
-  color: var(--color-ink-soft);
+  min-width: 0;
+}
+
+.budget-card__stats span {
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.budget-card__stats b {
   font-family: var(--font-mono);
-  border-top: 1px solid var(--color-border);
-  padding-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
