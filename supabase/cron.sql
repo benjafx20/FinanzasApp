@@ -22,7 +22,7 @@ select cron.schedule(
   '0 9 * * *',
   $$
   select net.http_post(
-    url := 'https://TU-PROYECTO.supabase.co/functions/v1/generate-recurring-expenses',
+    url := 'https://boekkozqphevycbszind.supabase.co/functions/v1/generate-recurring-expenses',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer TU-ANON-KEY'

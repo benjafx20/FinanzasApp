@@ -12,7 +12,6 @@ export function BudgetCard({
   saldo,
   gastadoSemana,
   gastadoMes,
-  onOpenDetail,
 }) {
   const saldoNegativo = saldo < 0;
   const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
@@ -20,18 +19,8 @@ export function BudgetCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
       className={`budget-card ${estado}`}
       style={{ '--card-color': category.color }}
-      onClick={onOpenDetail}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpenDetail?.();
-        }
-      }}
-      aria-label={`Ver detalle de ${category.nombre}`}
     >
       <div className="budget-card__top">
         <span className="budget-card__icon-circle">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // Las transferencias ya no están amarradas a un período: el saldo de una
@@ -7,11 +7,14 @@ import { supabase } from '../lib/supabaseClient';
 export function useBudgetTransfers(userId) {
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchTransfers = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('budget_transfers')
@@ -23,10 +26,12 @@ export function useBudgetTransfers(userId) {
     if (fetchError) {
       setError('No se pudieron cargar los movimientos entre categorías.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setTransfers(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

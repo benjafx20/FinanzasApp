@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useCategoryFundings(userId) {
   const [fundings, setFundings] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchFundings = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
       supabase.from('category_fundings').select('*').order('created_at', { ascending: false })
@@ -18,10 +21,12 @@ export function useCategoryFundings(userId) {
       console.error('[useCategoryFundings] fetchFundings:', fetchError);
       setError(`No se pudieron cargar los aportes a categorías: ${fetchError.message}`);
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setFundings(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

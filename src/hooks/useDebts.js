@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // 'prestado': le prestaste plata a alguien (te deben).
@@ -8,11 +8,14 @@ import { supabase } from '../lib/supabaseClient';
 export function useDebts(userId) {
   const [debts, setDebts] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchDebts = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('debts')
@@ -23,10 +26,12 @@ export function useDebts(userId) {
     if (fetchError) {
       setError('No se pudieron cargar las deudas y préstamos.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setDebts(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

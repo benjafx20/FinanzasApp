@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // La generación automática de gastos recurrentes ya NO ocurre acá en el
@@ -8,11 +8,14 @@ import { supabase } from '../lib/supabaseClient';
 export function useRecurringExpenses(userId) {
   const [recurring, setRecurring] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchRecurring = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase
       .from('recurring_expenses')
@@ -22,10 +25,12 @@ export function useRecurringExpenses(userId) {
     if (fetchError) {
       setError('No se pudieron cargar los gastos recurrentes.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setRecurring(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

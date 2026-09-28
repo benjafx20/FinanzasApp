@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getCurrentMonthKey, getCurrentWeekKey } from '../utils/dateHelpers';
 
@@ -8,21 +8,26 @@ import { getCurrentMonthKey, getCurrentWeekKey } from '../utils/dateHelpers';
 export function useBudgets(userId) {
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchBudgets = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase.from('budgets').select('*');
 
     if (fetchError) {
       setError('No se pudieron cargar las metas de gasto.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setBudgets(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

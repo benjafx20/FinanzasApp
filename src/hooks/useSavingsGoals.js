@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export function useSavingsGoals(userId) {
   const [goals, setGoals] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchAll = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
 
     const [goalsRes, contribRes] = await Promise.all([
@@ -20,11 +23,13 @@ export function useSavingsGoals(userId) {
     if (goalsRes.error || contribRes.error) {
       setError('No se pudieron cargar las metas de ahorro.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setGoals(goalsRes.data);
     setContributions(contribRes.data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

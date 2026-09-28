@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useIncomes(userId) {
   const [incomes, setIncomes] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchIncomes = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
       supabase.from('incomes').select('*').order('fecha', { ascending: false })
@@ -18,10 +21,12 @@ export function useIncomes(userId) {
       console.error('[useIncomes] fetchIncomes:', fetchError);
       setError(`No se pudieron cargar los ingresos: ${fetchError.message}`);
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     setIncomes(data);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

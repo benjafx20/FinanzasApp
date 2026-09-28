@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // Combina las categorías (globales + propias) con las preferencias del
@@ -8,11 +8,14 @@ import { supabase } from '../lib/supabaseClient';
 export function useCategories(userId) {
   const [allCategories, setAllCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchCategories = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
 
     const [catRes, prefRes] = await Promise.all([
@@ -23,6 +26,7 @@ export function useCategories(userId) {
     if (catRes.error || prefRes.error) {
       setError('No se pudieron cargar las categorías.');
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
 
@@ -44,6 +48,7 @@ export function useCategories(userId) {
 
     setAllCategories(merged);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {

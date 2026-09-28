@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 import { getPendingExpenses, queuePendingExpense, removePendingExpense, updatePendingExpense } from '../utils/offlineQueue';
 
@@ -12,11 +12,17 @@ function isPendingId(id) {
 export function useExpenses(userId) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra Cargando; al volver a la app se
+  // refresca en silencio para que la lista no parpadee.
+  const cargadoRef = useRef(false);
+  // Candado: evita que dos sincronizaciones corran a la vez (al montar y al
+  // volver a la app) y suban dos veces el mismo gasto pendiente.
+  const sincronizandoRef = useRef(false);
   const [error, setError] = useState(null);
 
   const fetchExpenses = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
       supabase.from('expenses').select(SELECT_EXPENSE).order('fecha', { ascending: false })
@@ -26,6 +32,7 @@ export function useExpenses(userId) {
       console.error('[useExpenses] fetchExpenses:', fetchError);
       setError(`No se pudieron cargar los gastos: ${fetchError.message}`);
       setLoading(false);
+      cargadoRef.current = true;
       return;
     }
     // Los gastos registrados sin conexión que todavía no se han podido
@@ -33,6 +40,7 @@ export function useExpenses(userId) {
     const pendientes = getPendingExpenses(userId);
     setExpenses([...pendientes, ...data]);
     setLoading(false);
+    cargadoRef.current = true;
   }, [userId]);
 
   useEffect(() => {
@@ -44,16 +52,23 @@ export function useExpenses(userId) {
   // Dashboard) y al montar, por si quedaron pendientes de una sesión
   // anterior. Si sigue sin haber conexión, no hace nada (no truena).
   const syncPendingExpenses = useCallback(async () => {
-    if (!userId || !navigator.onLine) return;
+    if (!userId || !navigator.onLine || sincronizandoRef.current) return;
     const pendientes = getPendingExpenses(userId);
     if (pendientes.length === 0) return;
 
-    for (const pendiente of pendientes) {
-      const { pending: _pending, id: _id, created_at: _createdAt, ...payload } = pendiente;
-      const { error: insertError } = await supabase.from('expenses').insert(payload);
-      // Si falla uno (ej: se cortó la conexión de nuevo a mitad de camino),
-      // se deja en la cola y se reintenta la próxima vez.
-      if (!insertError) removePendingExpense(userId, pendiente.id);
+    sincronizandoRef.current = true;
+    try {
+      for (const pendiente of pendientes) {
+        const { pending: _pending, id: _id, created_at: _createdAt, ...payload } = pendiente;
+        const { error: insertError } = await withSessionRetry(() =>
+          supabase.from('expenses').insert(payload)
+        );
+        // Si falla uno (ej: se cortó la conexión de nuevo a mitad de camino),
+        // se deja en la cola y se reintenta la próxima vez.
+        if (!insertError) removePendingExpense(userId, pendiente.id);
+      }
+    } finally {
+      sincronizandoRef.current = false;
     }
     fetchExpenses();
   }, [userId, fetchExpenses]);
@@ -113,18 +128,20 @@ export function useExpenses(userId) {
       return actualizado;
     }
 
-    const { data, error: updateError } = await supabase
-      .from('expenses')
-      .update({
-        category_id: categoryId,
-        monto,
-        fecha,
-        nota,
-        funding_category_id: fundingCategoryId || null,
-      })
-      .eq('id', expenseId)
-      .select(SELECT_EXPENSE)
-      .single();
+    const { data, error: updateError } = await withSessionRetry(() =>
+      supabase
+        .from('expenses')
+        .update({
+          category_id: categoryId,
+          monto,
+          fecha,
+          nota,
+          funding_category_id: fundingCategoryId || null,
+        })
+        .eq('id', expenseId)
+        .select(SELECT_EXPENSE)
+        .single()
+    );
 
     if (updateError) throw new Error('No se pudo actualizar el gasto. Intenta de nuevo.');
     setExpenses((prev) => prev.map((e) => (e.id === expenseId ? data : e)));
@@ -138,10 +155,9 @@ export function useExpenses(userId) {
       return;
     }
 
-    const { error: deleteError } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expenseId);
+    const { error: deleteError } = await withSessionRetry(() =>
+      supabase.from('expenses').delete().eq('id', expenseId)
+    );
 
     if (deleteError) throw new Error('No se pudo eliminar el gasto.');
     setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
