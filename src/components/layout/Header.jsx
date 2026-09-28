@@ -48,10 +48,6 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp, 
             <span>Esta semana</span>
             <b><Amount value={totalSemana} /></b>
           </div>
-          <div className="app-header__chip">
-            <span>Disponibilidad</span>
-            <b><Amount value={balance} /></b>
-          </div>
         </div>
       </div>
     </header>

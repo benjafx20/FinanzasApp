@@ -79,20 +79,21 @@
 
 .app-header__balance-hero {
   font-family: var(--font-display);
-  font-size: clamp(2.4rem, 4vw, 4.2rem);
+  font-size: clamp(2rem, 4vw, 4.2rem);
   line-height: 1;
+  white-space: nowrap;
   font-weight: 700;
   letter-spacing: -0.06em;
   margin: 0;
 }
 
 .app-header__balance-hero--negativo {
-  color: #ffd7d7;
+  color: var(--color-coral);
 }
 
 .app-header__summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -103,8 +104,8 @@
   padding: 12px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 90px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .app-header__chip--highlight {
@@ -142,26 +143,53 @@
     grid-template-columns: 1fr;
   }
 
-  .app-header__summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 520px) {
   .app-header {
-    padding: 16px 14px 18px;
+    padding: 14px 14px 16px;
     border-radius: 22px;
   }
 
   .app-header__top {
-    margin-bottom: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .app-header__actions {
+    flex-wrap: wrap;
+    gap: 5px;
   }
 
   .app-header__brand {
     font-size: 13px;
   }
 
-  .app-header__summary {
-    grid-template-columns: 1fr;
+  .app-header__content {
+    gap: 12px;
+  }
+
+  .app-header__balance-label {
+    margin-bottom: 4px;
+  }
+
+  .app-header__balance-hero {
+    font-size: clamp(1.7rem, 8.5vw, 2.1rem);
+  }
+
+  .app-header__chip {
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .app-header__chip span {
+    font-size: 9px;
+  }
+
+  .app-header__chip b {
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

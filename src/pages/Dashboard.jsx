@@ -47,7 +47,6 @@ import { DebtForm } from '../components/debts/DebtForm';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
 import { AssistantModal } from '../components/assistant/AssistantModal';
 import { buildFinancialContext } from '../utils/buildFinancialContext';
-import { formatCurrency } from '../utils/formatCurrency';
 import {
   getCurrentMonthKey,
   getWeekRange,

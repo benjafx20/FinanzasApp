@@ -176,18 +176,24 @@
   color: var(--color-ink);
 }
 
+/* minmax(0, 1fr) es lo que permite que la grilla se encoja al ancho de la
+   pantalla. Sin esto, la columna crece hasta el ancho total de las tarjetas
+   (min-width: auto) y el carrusel nunca desborda, asi que no hay scroll. */
 .dashboard__content {
   padding-top: 2px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
 .dashboard__row {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
 .dashboard__section {
+  min-width: 0;
   background: linear-gradient(180deg, var(--color-surface-soft) 0%, var(--color-surface) 100%);
   border: 1px solid var(--color-border);
   border-radius: 20px;
@@ -244,6 +250,10 @@
   display: flex;
   gap: 14px;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
   padding: 4px 2px 8px;
   scrollbar-width: thin;
   scrollbar-color: rgba(107, 63, 217, 0.35) transparent;
@@ -319,7 +329,7 @@
 
 @media (min-width: 900px) {
   .dashboard__content {
-    grid-template-columns: 1.35fr 0.95fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr);
   }
 
   .dashboard__section:first-child {
