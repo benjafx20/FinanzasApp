@@ -28,4 +28,4 @@ export const PALETTES = [
   },
 ];
 
-export const DEFAULT_PALETTE = 'morado';
+export const DEFAULT_PALETTE = 'carbon';

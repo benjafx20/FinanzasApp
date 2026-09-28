@@ -1,39 +1,51 @@
 .ticket {
   position: relative;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-soft) 100%);
   border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: 0 10px 22px -20px rgba(15, 23, 42, 0.7), 0 0 0 1px rgba(15, 23, 42, 0.02);
   overflow: hidden;
+}
+
+.ticket::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary-soft) 80%, transparent), transparent 52%);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .ticket__main {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 10px 12px;
 }
 
 .ticket__main--clickable {
   width: 100%;
-  background: none;
+  background: transparent;
   border: none;
   text-align: left;
   font-family: inherit;
 }
 
 .ticket__main--clickable:hover {
-  background: var(--color-primary-soft);
+  background: rgba(124, 58, 237, 0.04);
 }
 
 .ticket__icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-primary-soft), var(--color-surface));
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-dark);
 }
 
 .ticket__info {
@@ -41,20 +53,23 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  gap: 3px;
 }
 
 .ticket__category {
-  font-weight: 600;
-  font-size: 14.5px;
+  font-weight: 700;
+  font-size: 14px;
   color: var(--color-ink);
 }
 
 .ticket__nota {
-  font-size: 12.5px;
+  font-size: 12px;
+  line-height: 1.25;
   color: var(--color-ink-soft);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ticket__pending {
@@ -62,8 +77,8 @@
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--color-sun);
   width: fit-content;
 }
@@ -82,27 +97,28 @@
   flex-direction: column;
   align-items: flex-end;
   flex-shrink: 0;
+  min-width: 68px;
 }
 
 .ticket__monto {
   font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 14.5px;
+  font-weight: 800;
+  font-size: 15px;
   color: var(--color-ink);
+  letter-spacing: -0.02em;
 }
 
 .ticket__fecha {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--color-ink-soft);
   text-transform: capitalize;
 }
 
-/* Línea de perforación con muescas semicirculares, como una boleta real */
 .ticket__perforation {
   position: relative;
   height: 1px;
-  border-top: 2px dashed var(--color-border);
-  margin: 0 16px;
+  border-top: 2px dashed rgba(148, 163, 184, 0.22);
+  margin: 0 14px;
 }
 
 .ticket__perforation::before,
@@ -122,17 +138,17 @@
 .ticket__delete {
   display: block;
   width: 100%;
-  background: none;
+  background: rgba(248, 113, 113, 0.04);
   border: none;
   padding: 8px 16px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: var(--color-coral);
   text-align: center;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .ticket__delete:hover {
   opacity: 1;
-  background: var(--color-coral-soft);
+  background: rgba(248, 113, 113, 0.08);
 }

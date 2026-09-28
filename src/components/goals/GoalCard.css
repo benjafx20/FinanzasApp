@@ -1,20 +1,24 @@
 .goal-card {
   flex: 0 0 auto;
   width: 168px;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(155deg, var(--color-primary), var(--color-primary-dark));
+  border-radius: 18px;
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--color-primary) 55%, transparent);
+  border: none;
   padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   text-align: center;
+  color: white;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .goal-card--completa {
-  background: var(--color-mint-soft);
+  background: linear-gradient(155deg, var(--color-mint), color-mix(in srgb, var(--color-mint) 60%, black));
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--color-mint) 55%, transparent);
 }
 
 .goal-card__top {
@@ -26,7 +30,7 @@
 
 .goal-card__nombre {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -35,7 +39,8 @@
 .goal-card__delete {
   background: none;
   border: none;
-  color: var(--color-ink-soft);
+  color: white;
+  opacity: 0.7;
   font-size: 11px;
   flex-shrink: 0;
   padding: 2px 4px;
@@ -55,12 +60,13 @@
 
 .goal-card__ring-track {
   fill: none;
-  stroke: var(--color-border);
+  stroke: rgba(255, 255, 255, 0.25);
   stroke-width: 8;
 }
 
 .goal-card__ring-fill {
   fill: none;
+  stroke: white !important;
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.4s ease;
@@ -73,7 +79,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
 }
 
@@ -83,26 +89,24 @@
 }
 
 .goal-card__acumulado {
-  font-weight: 600;
-  color: var(--color-ink);
+  font-weight: 700;
 }
 
 .goal-card__objetivo {
-  color: var(--color-ink-soft);
+  opacity: 0.85;
 }
 
 .goal-card__aportar {
   width: 100%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   padding: 8px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .goal-card__aportar:hover {
-  background: var(--color-primary);
-  color: white;
+  background: rgba(255, 255, 255, 0.32);
 }

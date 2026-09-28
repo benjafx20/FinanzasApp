@@ -1,24 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
 :root {
+  color-scheme: light;
+
   /* Fallback de seguridad (si por algo no se aplicó data-palette todavía).
      El valor real de cada paleta vive en los bloques [data-palette="..."]
-     de más abajo — este bloque es solo la paleta "morado" por defecto. */
-  --color-bg: #EDE4FB;
-  --color-surface: #FFFFFF;
-  --color-ink: #241B3D;
-  --color-ink-soft: #6E6690;
-  --color-primary: #6B3FD9;
-  --color-primary-light: #8A63F2;
-  --color-primary-dark: #4B2A9E;
-  --color-primary-soft: #EAE0FC;
-  --color-mint: #06D6A0;
-  --color-mint-soft: #E1FBF3;
-  --color-coral: #FF6B6B;
-  --color-coral-soft: #FFEBEB;
-  --color-sun: #F5B942;
-  --color-sun-soft: #FFF3DC;
-  --color-border: #DCD0F5;
+     de más abajo — este bloque es la paleta institucional premium. */
+  --color-bg: #f3f5f7;
+  --color-bg-alt: #eef2f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8f9fb;
+  --color-surface-strong: #eef2f6;
+  --color-ink: #121923;
+  --color-ink-soft: #5d6876;
+  --color-primary: #1f2937;
+  --color-primary-light: #404d5d;
+  --color-primary-dark: #101721;
+  --color-primary-soft: #edf2f7;
+  --color-mint: #5e7d6d;
+  --color-mint-soft: #ebf2ee;
+  --color-coral: #c96b5f;
+  --color-coral-soft: #f8eeeb;
+  --color-sun: #b7a88b;
+  --color-sun-soft: #f3efe8;
+  --color-border: #e5e9ee;
+  --color-glow: rgba(17, 24, 39, 0.08);
 
   /* Tipografía */
   --font-display: 'Fraunces', serif;
@@ -26,11 +32,11 @@
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Layout */
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --shadow-card: 0 2px 14px rgba(80, 50, 180, 0.12);
-  --shadow-float: 0 8px 24px rgba(107, 63, 217, 0.35);
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --shadow-card: 0 12px 28px rgba(67, 42, 129, 0.08);
+  --shadow-float: 0 18px 36px rgba(90, 64, 178, 0.18);
   --max-width: 480px;
 }
 
@@ -43,29 +49,40 @@
    ============================================================ */
 
 /* --- Morado joya: el clásico de la app, más profundo que el lila original --- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 :root[data-palette="morado"] {
-  --color-bg: #EDE4FB;
-  --color-surface: #FFFFFF;
-  --color-ink: #241B3D;
-  --color-ink-soft: #6E6690;
-  --color-primary: #6B3FD9;
-  --color-primary-light: #8A63F2;
-  --color-primary-dark: #4B2A9E;
-  --color-primary-soft: #EAE0FC;
-  --color-mint: #06D6A0;
-  --color-mint-soft: #E1FBF3;
-  --color-coral: #FF6B6B;
-  --color-coral-soft: #FFEBEB;
-  --color-sun: #F5B942;
-  --color-sun-soft: #FFF3DC;
-  --color-border: #DCD0F5;
-  --shadow-card: 0 2px 14px rgba(80, 50, 180, 0.12);
-  --shadow-float: 0 8px 24px rgba(107, 63, 217, 0.35);
+  --color-bg: #f3f5f7;
+  --color-bg-alt: #eef2f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8f9fb;
+  --color-surface-strong: #eef2f6;
+  --color-ink: #121923;
+  --color-ink-soft: #5d6876;
+  --color-primary: #1f2937;
+  --color-primary-light: #404d5d;
+  --color-primary-dark: #101721;
+  --color-primary-soft: #edf2f7;
+  --color-mint: #5e7d6d;
+  --color-mint-soft: #ebf2ee;
+  --color-coral: #c96b5f;
+  --color-coral-soft: #f8eeeb;
+  --color-sun: #b7a88b;
+  --color-sun-soft: #f3efe8;
+  --color-border: #e5e9ee;
+  --color-glow: rgba(17, 24, 39, 0.08);
+  --shadow-card: 0 12px 28px rgba(17, 24, 39, 0.06);
+  --shadow-float: 0 18px 36px rgba(17, 24, 39, 0.1);
 }
 
 :root[data-palette="morado"][data-theme="dark"] {
   --color-bg: #17121F;
-  --color-surface: #211A33;
+  --color-bg-alt: #211935;
+  --color-surface: #201a31;
+  --color-surface-soft: #261f3d;
+  --color-surface-strong: #2b2447;
   --color-ink: #F1EEFB;
   --color-ink-soft: #A79CC9;
   --color-primary: #9B7DFF;
@@ -79,14 +96,18 @@
   --color-sun: #FFD273;
   --color-sun-soft: #3D2F12;
   --color-border: #362A52;
-  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.45);
-  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --color-glow: rgba(143, 118, 255, 0.2);
+  --shadow-card: 0 12px 26px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 18px 36px rgba(0, 0, 0, 0.45);
 }
 
 /* --- Vino y cuero: burdeos profundo + dorado, billetera de cuero fino --- */
 :root[data-palette="vino"] {
   --color-bg: #EDD9D3;
+  --color-bg-alt: #F8EDE9;
   --color-surface: #FFFBF9;
+  --color-surface-soft: #F9F0EE;
+  --color-surface-strong: #F2DDE2;
   --color-ink: #2E1620;
   --color-ink-soft: #7D5E63;
   --color-primary: #7A1F3D;
@@ -100,13 +121,17 @@
   --color-sun: #D4A62B;
   --color-sun-soft: #F8EDD0;
   --color-border: #E0C4BC;
+  --color-glow: rgba(122, 31, 61, 0.08);
   --shadow-card: 0 2px 14px rgba(122, 31, 61, 0.14);
   --shadow-float: 0 8px 24px rgba(122, 31, 61, 0.35);
 }
 
 :root[data-palette="vino"][data-theme="dark"] {
   --color-bg: #1A0E13;
+  --color-bg-alt: #23151A;
   --color-surface: #26141B;
+  --color-surface-soft: #2E1820;
+  --color-surface-strong: #341D27;
   --color-ink: #F5E9EA;
   --color-ink-soft: #C2A0A8;
   --color-primary: #C2547A;
@@ -120,6 +145,7 @@
   --color-sun: #E8C158;
   --color-sun-soft: #362A10;
   --color-border: #3D2229;
+  --color-glow: rgba(194, 84, 122, 0.16);
   --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
@@ -127,7 +153,10 @@
 /* --- Océano: verde azulado profundo + coral, más fresco y náutico --- */
 :root[data-palette="oceano"] {
   --color-bg: #DFEFEC;
+  --color-bg-alt: #EEF8F6;
   --color-surface: #FAFEFD;
+  --color-surface-soft: #F1F9F9;
+  --color-surface-strong: #DFF0EF;
   --color-ink: #0F282A;
   --color-ink-soft: #517577;
   --color-primary: #0F6E73;
@@ -141,13 +170,17 @@
   --color-sun: #E3A73E;
   --color-sun-soft: #FBEDD3;
   --color-border: #C7E2DF;
+  --color-glow: rgba(15, 110, 115, 0.08);
   --shadow-card: 0 2px 14px rgba(15, 110, 115, 0.14);
   --shadow-float: 0 8px 24px rgba(15, 110, 115, 0.35);
 }
 
 :root[data-palette="oceano"][data-theme="dark"] {
   --color-bg: #0B1B1C;
+  --color-bg-alt: #112427;
   --color-surface: #12282A;
+  --color-surface-soft: #183134;
+  --color-surface-strong: #1E3A3F;
   --color-ink: #E7F5F4;
   --color-ink-soft: #93B8B7;
   --color-primary: #3FB8BE;
@@ -161,6 +194,7 @@
   --color-sun: #F0C15E;
   --color-sun-soft: #382C10;
   --color-border: #1F3F42;
+  --color-glow: rgba(63, 184, 190, 0.16);
   --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
@@ -168,7 +202,10 @@
 /* --- Carbón nocturno: grafito casi negro + acento lima eléctrico --- */
 :root[data-palette="carbon"] {
   --color-bg: #E7E9EC;
+  --color-bg-alt: #F0F3F5;
   --color-surface: #FFFFFF;
+  --color-surface-soft: #F3F5F7;
+  --color-surface-strong: #E8EBEE;
   --color-ink: #1B2430;
   --color-ink-soft: #5C6B7A;
   --color-primary: #3A4756;
@@ -182,13 +219,17 @@
   --color-sun: #7FA324;
   --color-sun-soft: #EAF4D2;
   --color-border: #D3D8DD;
+  --color-glow: rgba(27, 36, 48, 0.08);
   --shadow-card: 0 2px 14px rgba(27, 36, 48, 0.14);
   --shadow-float: 0 8px 24px rgba(27, 36, 48, 0.35);
 }
 
 :root[data-palette="carbon"][data-theme="dark"] {
   --color-bg: #14181D;
+  --color-bg-alt: #1B2128;
   --color-surface: #1E242C;
+  --color-surface-soft: #232B33;
+  --color-surface-strong: #2A323C;
   --color-ink: #E7EAEE;
   --color-ink-soft: #8E99A6;
   --color-primary: #7C93AC;
@@ -199,10 +240,10 @@
   --color-mint-soft: #16301E;
   --color-coral: #F0836A;
   --color-coral-soft: #3A1E17;
-  /* acento estrella de esta paleta: lima eléctrico contra el grafito */
   --color-sun: #C6FF3D;
   --color-sun-soft: #2B3510;
   --color-border: #2A323C;
+  --color-glow: rgba(198, 255, 61, 0.12);
   --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.5);
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
 }

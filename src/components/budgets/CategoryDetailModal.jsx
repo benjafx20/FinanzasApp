@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Amount } from '../ui/Amount';
 import { ExpenseCard } from '../expenses/ExpenseCard';
@@ -26,6 +27,18 @@ export function CategoryDetailModal({
 }) {
   const saldoNegativo = saldo < 0;
   const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
+
+  useEffect(() => {
+    setShowAllExpenses(false);
+  }, [category?.id]);
+
+  const expensesOrdenados = useMemo(
+    () => [...expensesDeCategoria].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)),
+    [expensesDeCategoria]
+  );
+  const gastosVisibles = showAllExpenses ? expensesOrdenados : expensesOrdenados.slice(0, 4);
+  const hayMasGastos = expensesOrdenados.length > 4;
 
   return (
     <div className="category-detail">
@@ -51,9 +64,9 @@ export function CategoryDetailModal({
       <span className="category-detail__saldo-label">te queda</span>
 
       <div className="category-detail__stats">
-        <span>Asignado en total: <strong><Amount value={asignado} /></strong></span>
-        <span>Gastado esta semana: <strong><Amount value={gastadoSemana} /></strong></span>
-        <span>Gastado este mes: <strong><Amount value={gastadoMes} /></strong></span>
+        <span>Total: <strong><Amount value={asignado} /></strong></span>
+        <span>Semana: <strong><Amount value={gastadoSemana} /></strong></span>
+        <span>Mes: <strong><Amount value={gastadoMes} /></strong></span>
       </div>
 
       <div className="category-detail__actions">
@@ -80,14 +93,25 @@ export function CategoryDetailModal({
 
       <div className="category-detail__expenses">
         <span className="category-detail__expenses-title">Gastos de esta categoría</span>
-        {expensesDeCategoria.length === 0 ? (
+        {expensesOrdenados.length === 0 ? (
           <p className="dashboard__empty">Todavía no hay gastos en esta categoría.</p>
         ) : (
-          <div className="expense-list">
-            {expensesDeCategoria.map((exp) => (
-              <ExpenseCard key={exp.id} expense={exp} onEdit={onEditExpense} onDelete={onDeleteExpense} />
-            ))}
-          </div>
+          <>
+            <div className="expense-list">
+              {gastosVisibles.map((exp) => (
+                <ExpenseCard key={exp.id} expense={exp} onEdit={onEditExpense} onDelete={onDeleteExpense} />
+              ))}
+            </div>
+            {hayMasGastos && (
+              <button
+                type="button"
+                className="category-detail__show-more"
+                onClick={() => setShowAllExpenses((prev) => !prev)}
+              >
+                {showAllExpenses ? 'Ver menos' : `Ver más (${expensesOrdenados.length - 4} más)`}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

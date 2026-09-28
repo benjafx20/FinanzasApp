@@ -30,20 +30,29 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp, 
           <button className="app-header__logout" onClick={onSignOut}>Salir</button>
         </div>
       </div>
-      <div className="app-header__summary">
-        <div>
-          <span className="app-header__label">Gastado este mes</span>
-          <span className="app-header__total"><Amount value={totalMes} /></span>
+
+      <div className="app-header__content">
+        <div className="app-header__primary">
+          <p className="app-header__balance-label">Balance total</p>
+          <p className={`app-header__balance-hero ${balancePositivo ? '' : 'app-header__balance-hero--negativo'}`}>
+            <Amount value={balance} />
+          </p>
         </div>
-        <div className="app-header__divider" />
-        <div>
-          <span className="app-header__label">Esta semana</span>
-          <span className="app-header__semana"><Amount value={totalSemana} /></span>
+
+        <div className="app-header__summary">
+          <div className="app-header__chip app-header__chip--highlight">
+            <span>Este mes</span>
+            <b><Amount value={totalMes} /></b>
+          </div>
+          <div className="app-header__chip">
+            <span>Esta semana</span>
+            <b><Amount value={totalSemana} /></b>
+          </div>
+          <div className="app-header__chip">
+            <span>Disponibilidad</span>
+            <b><Amount value={balance} /></b>
+          </div>
         </div>
-      </div>
-      <div className={`app-header__balance ${balancePositivo ? '' : 'app-header__balance--negativo'}`}>
-        <span>Balance total</span>
-        <strong><Amount value={balance} /></strong>
       </div>
     </header>
   );

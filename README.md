@@ -1,16 +1,39 @@
-# React + Vite
+# Finanzas App
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicación para llevar el control de gastos, ingresos, metas de ahorro, deudas y presupuestos personales.
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 18+
+- npm
 
-## React Compiler
+## Inicio rápido
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Copia el archivo `.env.example` a `.env`.
+2. Completa tus variables de Supabase.
+3. Instala dependencias:
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+4. Inicia la app:
+
+```bash
+npm run dev
+```
+
+## Variables de entorno
+
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-anon-key-publica
+```
+
+## Scripts disponibles
+
+```bash
+npm run dev
+npm run build
+npm run lint
+```

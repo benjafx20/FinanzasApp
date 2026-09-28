@@ -15,10 +15,6 @@ const CHROME_COLORS = {
   carbon: { light: '#3A4756', dark: '#14181D' },
 };
 
-function getSystemPreference() {
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
 // Fuente única de verdad de tema (claro/oscuro) Y paleta de colores.
 // La comparten: el switch claro/oscuro del header, el selector de
 // paletas, y cualquier componente que necesite saber qué colores usar
@@ -26,9 +22,9 @@ function getSystemPreference() {
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     try {
-      return localStorage.getItem(THEME_KEY) || getSystemPreference();
+      return localStorage.getItem(THEME_KEY) || 'dark';
     } catch {
-      return getSystemPreference();
+      return 'dark';
     }
   });
 
@@ -41,7 +37,24 @@ export function ThemeProvider({ children }) {
   });
 
   useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      const savedPalette = localStorage.getItem(PALETTE_KEY);
+
+      if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
+        setTheme(savedTheme);
+      }
+      if (savedPalette && ['morado', 'vino', 'oceano', 'carbon'].includes(savedPalette)) {
+        setPaletteState(savedPalette);
+      }
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   useEffect(() => {
