@@ -16,6 +16,7 @@ export function CategoryDetailModal({
   gastadoMes,
   fundingsDeCategoria,
   onUndoFunding,
+  onDeleteIncome,
   expensesDeCategoria,
   onAddExpense,
   onAddFunds,
@@ -27,18 +28,31 @@ export function CategoryDetailModal({
 }) {
   const saldoNegativo = saldo < 0;
   const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [expenseLimit, setExpenseLimit] = useState(4);
+  const [fundingLimit, setFundingLimit] = useState(4);
 
   useEffect(() => {
-    setShowAllExpenses(false);
+    setExpenseLimit(4);
+    setFundingLimit(4);
   }, [category?.id]);
 
   const expensesOrdenados = useMemo(
-    () => [...expensesDeCategoria].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)),
+    // Orden por fecha y, si empatan (mismo día), por hora real de creación:
+    // sin esto, Postgres no garantiza un orden estable entre filas con la
+    // misma fecha y el listado se veía "desordenado" al azar.
+    () =>
+      [...expensesDeCategoria].sort((a, b) => {
+        const porFecha = new Date(b.fecha) - new Date(a.fecha);
+        if (porFecha !== 0) return porFecha;
+        return new Date(b.created_at) - new Date(a.created_at);
+      }),
     [expensesDeCategoria]
   );
-  const gastosVisibles = showAllExpenses ? expensesOrdenados : expensesOrdenados.slice(0, 4);
-  const hayMasGastos = expensesOrdenados.length > 4;
+  const gastosVisibles = expensesOrdenados.slice(0, expenseLimit);
+  const hayMasGastos = expensesOrdenados.length > expenseLimit;
+
+  const fundingsVisibles = fundingsDeCategoria.slice(0, fundingLimit);
+  const hayMasFundings = fundingsDeCategoria.length > fundingLimit;
 
   return (
     <div className="category-detail">
@@ -80,7 +94,18 @@ export function CategoryDetailModal({
         {fundingsDeCategoria.length === 0 ? (
           <p className="dashboard__empty">Todavía no hay aportes en esta categoría.</p>
         ) : (
-          <FundingHistory fundings={fundingsDeCategoria} onUndo={onUndoFunding} />
+          <>
+            <FundingHistory fundings={fundingsVisibles} onUndo={onUndoFunding} onDeleteIncome={onDeleteIncome} />
+            {hayMasFundings && (
+              <button
+                type="button"
+                className="category-detail__show-more"
+                onClick={() => setFundingLimit((n) => n + 4)}
+              >
+                Ver 4 más
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -106,9 +131,9 @@ export function CategoryDetailModal({
               <button
                 type="button"
                 className="category-detail__show-more"
-                onClick={() => setShowAllExpenses((prev) => !prev)}
+                onClick={() => setExpenseLimit((n) => n + 4)}
               >
-                {showAllExpenses ? 'Ver menos' : `Ver más (${expensesOrdenados.length - 4} más)`}
+                Ver 4 más
               </button>
             )}
           </>

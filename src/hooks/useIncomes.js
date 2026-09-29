@@ -14,7 +14,14 @@ export function useIncomes(userId) {
     if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
-      supabase.from('incomes').select('*').order('fecha', { ascending: false })
+      // Mismo desempate que en useExpenses: `fecha` no tiene hora, así que se
+      // ordena también por `created_at` para que el orden dentro de un mismo
+      // día sea estable y no dependa de detalles como si tiene nota o no.
+      supabase
+        .from('incomes')
+        .select('*')
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
     );
 
     if (fetchError) {

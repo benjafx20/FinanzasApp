@@ -51,3 +51,12 @@
 .funding-history__undo:hover {
   color: var(--color-coral);
 }
+
+.funding-history__delete {
+  color: var(--color-coral);
+  opacity: 0.75;
+}
+
+.funding-history__delete:hover {
+  opacity: 1;
+}

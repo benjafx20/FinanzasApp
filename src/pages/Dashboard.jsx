@@ -14,7 +14,6 @@ import { TransferForm } from '../components/budgets/TransferForm';
 import { TransferHistory } from '../components/budgets/TransferHistory';
 import { AddFundingForm } from '../components/budgets/AddFundingForm';
 import { CategoryDetailModal } from '../components/budgets/CategoryDetailModal';
-import { ExpenseCard } from '../components/expenses/ExpenseCard';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
 import { ExpenseCalendar } from '../components/expenses/ExpenseCalendar';
 const MonthlyTrendChart = lazy(() =>
@@ -25,12 +24,10 @@ const CategoryPieChart = lazy(() =>
 );
 import { RecurringExpenseForm } from '../components/expenses/RecurringExpenseForm';
 import { RecurringExpenseRow } from '../components/expenses/RecurringExpenseRow';
-import { ExpenseFilters } from '../components/expenses/ExpenseFilters';
 import { GoalCard } from '../components/goals/GoalCard';
 import { GoalForm } from '../components/goals/GoalForm';
 import { ContributionForm } from '../components/goals/ContributionForm';
 import { IncomeForm } from '../components/income/IncomeForm';
-import { IncomeCard } from '../components/income/IncomeCard';
 import { CategoryForm } from '../components/categories/CategoryForm';
 import { ManageCategoriesModal } from '../components/categories/ManageCategoriesModal';
 import { OnboardingModal } from '../components/onboarding/OnboardingModal';
@@ -78,15 +75,11 @@ export function Dashboard() {
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
-  const [expenseLimit, setExpenseLimit] = useState(4);
-  const [incomeLimit, setIncomeLimit] = useState(4);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [expenseSearch, setExpenseSearch] = useState('');
-  const [expenseFilterCategoryId, setExpenseFilterCategoryId] = useState(null);
   const [activeSection, setActiveSection] = useState(() => {
     if (typeof window === 'undefined') return 'overview';
     const hash = window.location.hash.replace('#', '');
-    return ['overview', 'savings', 'debts', 'activity', 'calendar'].includes(hash)
+    return ['overview', 'savings', 'debts', 'calendar'].includes(hash)
       ? hash
       : 'overview';
   });
@@ -101,8 +94,6 @@ export function Dashboard() {
 
   const {
     expenses,
-    loading: loadingExpenses,
-    error: expensesError,
     addExpense,
     updateExpense,
     deleteExpense,
@@ -144,7 +135,6 @@ export function Dashboard() {
   } = useDebts(user?.id);
   const {
     incomes,
-    error: incomesError,
     addIncome,
     updateIncome,
     deleteIncome,
@@ -292,22 +282,6 @@ export function Dashboard() {
     return expenses.filter((e) => e.category_id === viewingCategory.id);
   }, [expenses, viewingCategory]);
 
-  const expensesFiltrados = useMemo(() => {
-    const query = expenseSearch.trim().toLowerCase();
-    return [...expenses]
-      .filter((exp) => {
-        if (expenseFilterCategoryId && exp.category_id !== expenseFilterCategoryId) return false;
-        if (query && !(exp.nota || '').toLowerCase().includes(query)) return false;
-        return true;
-      })
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  }, [expenses, expenseSearch, expenseFilterCategoryId]);
-
-  const incomesRecientes = useMemo(
-    () => [...incomes].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)),
-    [incomes]
-  );
-
   const fundingsDeCategoriaEnDetalle = useMemo(() => {
     if (!viewingCategory) return [];
     return fundings.filter((f) => f.category_id === viewingCategory.id);
@@ -331,13 +305,6 @@ export function Dashboard() {
     }
   };
 
-  const handleDeleteIncome = async (id) => {
-    try {
-      await deleteIncome(id);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
 
   const handleDeleteGoal = async (id) => {
     if (!confirm('¿Eliminar esta meta? Se perderá el historial de aportes.')) return;
@@ -387,6 +354,23 @@ export function Dashboard() {
     if (!confirm('¿Deshacer este aporte? Bajará el saldo de la categoría.')) return;
     try {
       await deleteFunding(id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Elimina el ingreso completo (no solo el aporte a esta categoría). Si el
+  // ingreso se repartió en varias categorías, primero borra todos esos
+  // aportes para que no quede plata "fantasma" en otra categoría antes de
+  // borrar el ingreso en sí.
+  const handleDeleteIncomeFromDetail = async (incomeId) => {
+    if (!confirm('¿Eliminar este ingreso? Se quitará también de todas las categorías en las que se repartió.')) return;
+    try {
+      const fundingsDelIngreso = fundings.filter((f) => f.income_id === incomeId);
+      for (const f of fundingsDelIngreso) {
+        await deleteFunding(f.id);
+      }
+      await deleteIncome(incomeId);
     } catch (err) {
       alert(err.message);
     }
@@ -505,16 +489,6 @@ export function Dashboard() {
               </svg>
             ),
           },
-          {
-            id: 'activity',
-            label: 'Mov.',
-            order: 6,
-            icon: (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 16.5h3l2.2-6 4.1 9 2.4-5.5H20" />
-              </svg>
-            ),
-          },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -576,6 +550,29 @@ export function Dashboard() {
               )}
             </section>
 
+            <div className="dashboard__row">
+              <section className="dashboard__section dashboard__section--half">
+                <div className="dashboard__section-header">
+                  <h2 className="dashboard__section-title">Tendencia (últimos 6 meses)</h2>
+                  <button
+                    className="dashboard__add-link"
+                    onClick={() => setSummaryModal({ initialMonthKey: closedMonths[0] || null })}
+                  >
+                    📅 Resumen
+                  </button>
+                </div>
+                <Suspense fallback={<div className="trend-chart-skeleton" />}>
+                  <MonthlyTrendChart expenses={expenses} />
+                </Suspense>
+              </section>
+
+              <section className="dashboard__section dashboard__section--half">
+                <h2 className="dashboard__section-title">Gasto por categoría este mes</h2>
+                <Suspense fallback={<div className="trend-chart-skeleton" />}>
+                  <CategoryPieChart expenses={expenses} categories={allCategories} monthKey={monthKey} />
+                </Suspense>
+              </section>
+            </div>
           </>
         )}
 
@@ -637,85 +634,6 @@ export function Dashboard() {
             {debtsError && <p className="dashboard__error">{debtsError}</p>}
             <DebtsSection debts={debts} onMarkPaid={handleMarkDebtPaid} onDelete={handleDeleteDebt} />
           </section>
-        )}
-
-        {activeSection === 'activity' && (
-          <>
-            <div className="dashboard__row">
-              <section className="dashboard__section dashboard__section--half">
-                <h2 className="dashboard__section-title">Gastos recientes</h2>
-                <ExpenseFilters
-                  query={expenseSearch}
-                  onQueryChange={setExpenseSearch}
-                  categoryId={expenseFilterCategoryId}
-                  onCategoryChange={setExpenseFilterCategoryId}
-                  categories={categories}
-                />
-                {expensesError && <p className="dashboard__error">{expensesError}</p>}
-                {loadingExpenses ? (
-                  <p className="dashboard__empty">Cargando…</p>
-                ) : expenses.length === 0 ? (
-                  <p className="dashboard__empty">Aún no registras gastos. Toca el botón + para empezar.</p>
-                ) : expensesFiltrados.length === 0 ? (
-                  <p className="dashboard__empty">Ningún gasto calza con ese filtro.</p>
-                ) : (
-                  <div className="expense-list">
-                    {expensesFiltrados.slice(0, expenseLimit).map((exp) => (
-                      <ExpenseCard key={exp.id} expense={exp} onEdit={setEditingExpense} onDelete={handleDelete} />
-                    ))}
-                    {expensesFiltrados.length > expenseLimit && (
-                      <button className="dashboard__ver-mas" onClick={() => setExpenseLimit((n) => Math.min(n + 4, expensesFiltrados.length))}>
-                        Ver 4 más
-                      </button>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <section className="dashboard__section dashboard__section--half">
-                <h2 className="dashboard__section-title">Ingresos recientes</h2>
-                {incomesError && <p className="dashboard__error">{incomesError}</p>}
-                {incomesRecientes.length === 0 ? (
-                  <p className="dashboard__empty">Aún no registras ingresos.</p>
-                ) : (
-                  <div className="expense-list">
-                    {incomesRecientes.slice(0, incomeLimit).map((inc) => (
-                      <IncomeCard key={inc.id} income={inc} onEdit={setEditingIncome} onDelete={handleDeleteIncome} />
-                    ))}
-                    {incomesRecientes.length > incomeLimit && (
-                      <button className="dashboard__ver-mas" onClick={() => setIncomeLimit((n) => Math.min(n + 4, incomesRecientes.length))}>
-                        Ver 4 más
-                      </button>
-                    )}
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <div className="dashboard__row">
-              <section className="dashboard__section dashboard__section--half">
-                <div className="dashboard__section-header">
-                  <h2 className="dashboard__section-title">Tendencia (últimos 6 meses)</h2>
-                  <button
-                    className="dashboard__add-link"
-                    onClick={() => setSummaryModal({ initialMonthKey: closedMonths[0] || null })}
-                  >
-                    📅 Resumen
-                  </button>
-                </div>
-                <Suspense fallback={<div className="trend-chart-skeleton" />}>
-                  <MonthlyTrendChart expenses={expenses} />
-                </Suspense>
-              </section>
-
-              <section className="dashboard__section dashboard__section--half">
-                <h2 className="dashboard__section-title">Gasto por categoría este mes</h2>
-                <Suspense fallback={<div className="trend-chart-skeleton" />}>
-                  <CategoryPieChart expenses={expenses} categories={allCategories} monthKey={monthKey} />
-                </Suspense>
-              </section>
-            </div>
-          </>
         )}
 
         {activeSection === 'calendar' && (
@@ -867,6 +785,7 @@ export function Dashboard() {
             gastadoMes={gastoMesPorCategoria[viewingCategory.id] || 0}
             fundingsDeCategoria={fundingsDeCategoriaEnDetalle}
             onUndoFunding={handleUndoFunding}
+            onDeleteIncome={handleDeleteIncomeFromDetail}
             expensesDeCategoria={expensesDeCategoriaEnDetalle}
             onAddExpense={() => {
               setPresetExpenseCategoryId(viewingCategory.id);

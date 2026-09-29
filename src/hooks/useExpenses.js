@@ -25,7 +25,15 @@ export function useExpenses(userId) {
     if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
-      supabase.from('expenses').select(SELECT_EXPENSE).order('fecha', { ascending: false })
+      // `fecha` es tipo date (sin hora): entre dos gastos del mismo día, sin un
+      // segundo criterio el orden que devuelve Postgres no es estable y podía
+      // parecer que dependía de si el gasto tenía nota o no. `created_at` sí
+      // tiene hora real y desempata por orden de creación.
+      supabase
+        .from('expenses')
+        .select(SELECT_EXPENSE)
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
     );
 
     if (fetchError) {
