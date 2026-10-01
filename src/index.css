@@ -26,8 +26,8 @@ body {
   min-height: 100vh;
   background: var(--color-bg);
   color: var(--color-ink);
-  /* Permite zoom con pellizco (accesibilidad) pero quita el zoom por
-     doble toque, que hace sentir la app lenta y poco nativa. */
+  /* El zoom (pellizco y doble toque) está bloqueado desde el viewport de
+     index.html; esto además evita el pequeño delay de 300ms al tocar. */
   touch-action: manipulation;
 }
 
