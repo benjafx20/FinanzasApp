@@ -30,10 +30,12 @@ export function CategoryDetailModal({
   const saldoBajo = !saldoNegativo && asignado > 0 && saldo <= asignado * 0.2;
   const [expenseLimit, setExpenseLimit] = useState(4);
   const [fundingLimit, setFundingLimit] = useState(4);
+  const [grupoActivo, setGrupoActivo] = useState(null);
 
   useEffect(() => {
     setExpenseLimit(4);
     setFundingLimit(4);
+    setGrupoActivo(null);
   }, [category?.id]);
 
   const expensesOrdenados = useMemo(
@@ -48,8 +50,27 @@ export function CategoryDetailModal({
       }),
     [expensesDeCategoria]
   );
-  const gastosVisibles = expensesOrdenados.slice(0, expenseLimit);
-  const hayMasGastos = expensesOrdenados.length > expenseLimit;
+
+  // Grupos dentro de la categoría (ej: "Samsung A06" agrupa la pantalla, la
+  // placa, etc. dentro de "Celulares"), para ver cuánto se ha ido en un
+  // artículo puntual sin salir de la categoría.
+  const grupos = useMemo(() => {
+    const porNombre = new Map();
+    for (const exp of expensesOrdenados) {
+      if (!exp.etiqueta) continue;
+      const actual = porNombre.get(exp.etiqueta) || { nombre: exp.etiqueta, total: 0, cantidad: 0 };
+      actual.total += Number(exp.monto);
+      actual.cantidad += 1;
+      porNombre.set(exp.etiqueta, actual);
+    }
+    return [...porNombre.values()].sort((a, b) => b.total - a.total);
+  }, [expensesOrdenados]);
+
+  const expensesFiltrados = grupoActivo
+    ? expensesOrdenados.filter((exp) => exp.etiqueta === grupoActivo)
+    : expensesOrdenados;
+  const gastosVisibles = expensesFiltrados.slice(0, expenseLimit);
+  const hayMasGastos = expensesFiltrados.length > expenseLimit;
 
   const fundingsVisibles = fundingsDeCategoria.slice(0, fundingLimit);
   const hayMasFundings = fundingsDeCategoria.length > fundingLimit;
@@ -116,9 +137,42 @@ export function CategoryDetailModal({
         </div>
       )}
 
+      {grupos.length > 0 && (
+        <div className="category-detail__grupos">
+          <span className="category-detail__expenses-title">Grupos</span>
+          <div className="category-detail__grupos-lista">
+            <button
+              type="button"
+              className={`category-detail__grupo-chip ${!grupoActivo ? 'category-detail__grupo-chip--activo' : ''}`}
+              onClick={() => {
+                setGrupoActivo(null);
+                setExpenseLimit(4);
+              }}
+            >
+              Todos
+            </button>
+            {grupos.map((g) => (
+              <button
+                key={g.nombre}
+                type="button"
+                className={`category-detail__grupo-chip ${grupoActivo === g.nombre ? 'category-detail__grupo-chip--activo' : ''}`}
+                onClick={() => {
+                  setGrupoActivo((actual) => (actual === g.nombre ? null : g.nombre));
+                  setExpenseLimit(4);
+                }}
+              >
+                {g.nombre} · <Amount value={g.total} /> ({g.cantidad})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="category-detail__expenses">
-        <span className="category-detail__expenses-title">Gastos de esta categoría</span>
-        {expensesOrdenados.length === 0 ? (
+        <span className="category-detail__expenses-title">
+          {grupoActivo ? `Gastos de "${grupoActivo}"` : 'Gastos de esta categoría'}
+        </span>
+        {expensesFiltrados.length === 0 ? (
           <p className="dashboard__empty">Todavía no hay gastos en esta categoría.</p>
         ) : (
           <>

@@ -65,6 +65,12 @@ create index if not exists idx_expenses_fecha on expenses(fecha);
 -- el saldo de su propia categoría (el caso normal).
 alter table expenses add column if not exists funding_category_id uuid references categories(id) on delete set null;
 
+-- Agrupa gastos de una misma categoría bajo un mismo "proyecto" o artículo
+-- (ej: categoría "Celulares", etiqueta "Samsung A06" para la pantalla, la
+-- placa, etc). Opcional: si es NULL, el gasto no pertenece a ningún grupo.
+alter table expenses add column if not exists etiqueta text;
+create index if not exists idx_expenses_etiqueta on expenses(etiqueta);
+
 -- ---------- 3. METAS DE GASTO (opcionales) ----------
 -- Esto YA NO es "cuánta plata tienes" (eso lo maneja el saldo real de la
 -- categoría, ver category_fundings + budget_transfers + expenses más abajo).

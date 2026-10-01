@@ -56,7 +56,7 @@ export function GlobalSearchModal({ open, onClose, expenses, incomes, debts, cat
             className="global-search__input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Busca por nota, categoría o persona…"
+            placeholder="Busca por nota, grupo, categoría o persona…"
             autoFocus
           />
           {query && (

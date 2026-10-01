@@ -23,6 +23,7 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
         </div>
         <div className="ticket__info">
           <span className="ticket__category">{nombre}</span>
+          {expense.etiqueta && <span className="ticket__etiqueta">{expense.etiqueta}</span>}
           {expense.nota && <span className="ticket__nota">{expense.nota}</span>}
           {expense.pending && <span className="ticket__pending">Sin sincronizar</span>}
         </div>

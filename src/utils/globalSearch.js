@@ -19,7 +19,7 @@ export function searchAll({ query, expenses = [], incomes = [], debts = [], cate
 
   for (const e of expenses) {
     const cat = e.categories || categoriaPorId[e.category_id];
-    const texto = normalizar(`${e.nota || ''} ${cat?.nombre || ''}`);
+    const texto = normalizar(`${e.nota || ''} ${cat?.nombre || ''} ${e.etiqueta || ''}`);
     if (texto.includes(q)) {
       resultados.push({
         tipo: 'gasto',
@@ -27,7 +27,7 @@ export function searchAll({ query, expenses = [], incomes = [], debts = [], cate
         fecha: e.fecha,
         monto: Number(e.monto),
         titulo: cat?.nombre || 'Sin categoría',
-        subtitulo: e.nota || '',
+        subtitulo: e.etiqueta || e.nota || '',
         raw: e,
       });
     }

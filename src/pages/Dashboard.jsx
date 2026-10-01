@@ -664,6 +664,7 @@ export function Dashboard() {
           categories.length > 0 && (
             <ExpenseForm
               categories={categories}
+              expenses={expenses}
               defaultCategoryId={presetExpenseCategoryId}
               saldosPorCategoria={saldoPorCategoria}
               onSubmit={addExpense}
@@ -680,6 +681,7 @@ export function Dashboard() {
         {editingExpense && (
           <ExpenseForm
             categories={categories}
+            expenses={expenses}
             expense={editingExpense}
             saldosPorCategoria={saldoPorCategoria}
             onSubmit={(values) => updateExpense(editingExpense.id, values)}

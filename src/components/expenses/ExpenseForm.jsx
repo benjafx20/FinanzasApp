@@ -14,12 +14,13 @@ import './ExpenseForm.css';
 // `saldosPorCategoria`: mapa category_id -> saldo real, para validar y
 // mostrar cuánto hay disponible al elegir "pagar con otra categoría".
 // Si se pasa `expense`, el formulario edita ese gasto; si no, crea uno nuevo.
-export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorCategoria, onSubmit, onDone, categoryManagement }) {
+export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, saldosPorCategoria, onSubmit, onDone, categoryManagement }) {
   const isEditing = !!expense;
   const [categoryId, setCategoryId] = useState(expense?.category_id ?? defaultCategoryId ?? categories[0]?.id ?? '');
   const [monto, setMonto] = useState(expense?.monto ?? '');
   const [fecha, setFecha] = useState(expense?.fecha ?? (() => new Date().toISOString().slice(0, 10))());
   const [nota, setNota] = useState(expense?.nota ?? '');
+  const [etiqueta, setEtiqueta] = useState(expense?.etiqueta ?? '');
   const [pagarConOtra, setPagarConOtra] = useState(!!expense?.funding_category_id);
   const [fundingCategoryId, setFundingCategoryId] = useState(expense?.funding_category_id ?? '');
   const [error, setError] = useState('');
@@ -78,7 +79,7 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
 
     setLoading(true);
     try {
-      await onSubmit({ categoryId, monto, fecha, nota: nota.trim() || null, fundingCategoryId: efectivoFundingId });
+      await onSubmit({ categoryId, monto, fecha, nota: nota.trim() || null, fundingCategoryId: efectivoFundingId, etiqueta: etiqueta.trim() || null });
       onDone();
     } catch (err) {
       setError(err.message);
@@ -88,6 +89,17 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
   };
 
   const otrasCategorias = categories.filter((c) => c.id !== categoryId);
+
+  // Grupos ya usados en esta misma categoría (ej: "Samsung A06"), para que al
+  // escribir se puedan elegir de una lista en vez de tener que escribir el
+  // nombre exacto de nuevo y arriesgarse a un typo que rompa el agrupamiento.
+  const etiquetasSugeridas = [
+    ...new Set(
+      (expenses || [])
+        .filter((e) => e.category_id === categoryId && e.etiqueta)
+        .map((e) => e.etiqueta)
+    ),
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="expense-form">
@@ -154,6 +166,24 @@ export function ExpenseForm({ categories, expense, defaultCategoryId, saldosPorC
         placeholder="Ej: almuerzo con equipo"
         maxLength={100}
       />
+
+      <Input
+        id="etiqueta"
+        label="Agrupar como (opcional)"
+        type="text"
+        value={etiqueta}
+        onChange={(e) => setEtiqueta(e.target.value)}
+        placeholder="Ej: Samsung A06"
+        maxLength={60}
+        list="etiquetas-sugeridas"
+      />
+      {etiquetasSugeridas.length > 0 && (
+        <datalist id="etiquetas-sugeridas">
+          {etiquetasSugeridas.map((et) => (
+            <option key={et} value={et} />
+          ))}
+        </datalist>
+      )}
 
       <label className="expense-form__funding-toggle">
         <input type="checkbox" checked={pagarConOtra} onChange={(e) => setPagarConOtra(e.target.checked)} />

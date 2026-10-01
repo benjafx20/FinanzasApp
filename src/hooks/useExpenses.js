@@ -89,7 +89,7 @@ export function useExpenses(userId) {
   // categoría distinta a `categoryId` (ej: gasto categorizado en Celulares
   // pero pagado con la plata de Beca). Si no se pasa, se paga con el saldo
   // de su propia categoría (el caso normal).
-  const addExpense = useCallback(async ({ categoryId, monto, fecha, nota, fundingCategoryId }) => {
+  const addExpense = useCallback(async ({ categoryId, monto, fecha, nota, fundingCategoryId, etiqueta }) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
     if (!categoryId) throw new Error('Debes seleccionar una categoría.');
@@ -101,6 +101,7 @@ export function useExpenses(userId) {
       fecha,
       nota,
       funding_category_id: fundingCategoryId || null,
+      etiqueta: etiqueta?.trim() || null,
     };
 
     // Sin conexión: se guarda localmente y se muestra al tiro, marcado
@@ -123,14 +124,16 @@ export function useExpenses(userId) {
     return data;
   }, [userId]);
 
-  const updateExpense = useCallback(async (expenseId, { categoryId, monto, fecha, nota, fundingCategoryId }) => {
+  const updateExpense = useCallback(async (expenseId, { categoryId, monto, fecha, nota, fundingCategoryId, etiqueta }) => {
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
     if (!categoryId) throw new Error('Debes seleccionar una categoría.');
+
+    const etiquetaLimpia = etiqueta?.trim() || null;
 
     // Un gasto que todavía no se sincroniza vive solo en el navegador:
     // se edita ahí mismo, no en Supabase.
     if (isPendingId(expenseId)) {
-      const cambios = { category_id: categoryId, monto, fecha, nota, funding_category_id: fundingCategoryId || null };
+      const cambios = { category_id: categoryId, monto, fecha, nota, funding_category_id: fundingCategoryId || null, etiqueta: etiquetaLimpia };
       const actualizado = updatePendingExpense(userId, expenseId, cambios);
       setExpenses((prev) => prev.map((e) => (e.id === expenseId ? actualizado : e)));
       return actualizado;
@@ -145,6 +148,7 @@ export function useExpenses(userId) {
           fecha,
           nota,
           funding_category_id: fundingCategoryId || null,
+          etiqueta: etiquetaLimpia,
         })
         .eq('id', expenseId)
         .select(SELECT_EXPENSE)
