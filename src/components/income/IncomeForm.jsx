@@ -10,11 +10,14 @@ import './IncomeForm.css';
 // poder repartirlo entre categorías ahí mismo. Es opcional: si no reparte
 // nada, el ingreso igual queda registrado, solo que no le suma saldo a
 // ninguna categoría (puede hacerlo después con "+ Agregar plata").
-export function IncomeForm({ income, categories, onSubmit, onDone }) {
+// `etiquetasSugeridas`: grupos ya usados (en gastos y aportes), para elegir de una
+// lista y no arriesgar un typo que parta un grupo en dos.
+export function IncomeForm({ income, categories, etiquetasSugeridas = [], onSubmit, onDone }) {
   const isEditing = !!income;
   const [monto, setMonto] = useState(income?.monto ?? '');
   const [fecha, setFecha] = useState(income?.fecha ?? (() => new Date().toISOString().slice(0, 10))());
   const [nota, setNota] = useState(income?.nota ?? '');
+  const [etiqueta, setEtiqueta] = useState('');
   const [reparto, setReparto] = useState({}); // { categoryId: monto }
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ export function IncomeForm({ income, categories, onSubmit, onDone }) {
       const repartoArray = Object.entries(reparto)
         .filter(([, v]) => Number(v) > 0)
         .map(([categoryId, v]) => ({ categoryId, monto: Number(v) }));
-      await onSubmit({ monto, fecha, nota: nota.trim() || null }, repartoArray);
+      await onSubmit({ monto, fecha, nota: nota.trim() || null }, repartoArray, etiqueta.trim() || null);
       onDone();
     } catch (err) {
       setError(err.message);
@@ -72,6 +75,28 @@ export function IncomeForm({ income, categories, onSubmit, onDone }) {
         placeholder="Ej: sueldo, venta, extra"
         maxLength={100}
       />
+
+      {!isEditing && categories?.length > 0 && (
+        <>
+          <Input
+            id="income-etiqueta"
+            label="Agrupar como (opcional)"
+            type="text"
+            value={etiqueta}
+            onChange={(e) => setEtiqueta(e.target.value)}
+            placeholder="Ej: Samsung A06 (aplica a lo que repartas abajo)"
+            maxLength={60}
+            list="income-etiquetas-sugeridas"
+          />
+          {etiquetasSugeridas.length > 0 && (
+            <datalist id="income-etiquetas-sugeridas">
+              {etiquetasSugeridas.map((et) => (
+                <option key={et} value={et} />
+              ))}
+            </datalist>
+          )}
+        </>
+      )}
 
       {!isEditing && categories?.length > 0 && (
         <div className="income-split">

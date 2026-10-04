@@ -14,6 +14,9 @@ import { TransferForm } from '../components/budgets/TransferForm';
 import { TransferHistory } from '../components/budgets/TransferHistory';
 import { AddFundingForm } from '../components/budgets/AddFundingForm';
 import { CategoryDetailModal } from '../components/budgets/CategoryDetailModal';
+import { WeeklyPlanForm } from '../components/budgets/WeeklyPlanForm';
+import { useWeeklyPlans } from '../hooks/useWeeklyPlans';
+import { calcularPlan } from '../utils/weeklyPlan';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
 import { ExpenseCalendar } from '../components/expenses/ExpenseCalendar';
 const MonthlyTrendChart = lazy(() =>
@@ -68,6 +71,7 @@ export function Dashboard() {
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [transferFromCategory, setTransferFromCategory] = useState(null);
   const [fundingCategory, setFundingCategory] = useState(null);
+  const [weeklyPlanCategory, setWeeklyPlanCategory] = useState(null);
   const [viewingCategory, setViewingCategory] = useState(null);
   const [editingCategoryDirect, setEditingCategoryDirect] = useState(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
@@ -111,6 +115,7 @@ export function Dashboard() {
     fundings,
     addManualFunding,
     addIncomeFundings,
+    updateFundingEtiqueta,
     deleteFunding,
     totalPorCategoria,
     refetch: refetchFundings,
@@ -148,6 +153,13 @@ export function Dashboard() {
     deleteRecurring,
     refetch: refetchRecurring,
   } = useRecurringExpenses(user?.id);
+  const {
+    plans: weeklyPlans,
+    closures: weeklyClosures,
+    createPlan: createWeeklyPlan,
+    stopPlan: stopWeeklyPlan,
+    refetch: refetchWeeklyPlans,
+  } = useWeeklyPlans(user?.id);
   const { show: showOnboarding, finish: finishOnboarding, replay: replayOnboarding } = useOnboarding(user?.id);
 
   // Si la app estuvo en segundo plano y la sesión quedó vencida, al volver
@@ -161,6 +173,7 @@ export function Dashboard() {
     refetchIncomes,
     refetchRecurring,
     refetchDebts,
+    refetchWeeklyPlans,
     categoriesHook.refetch,
   ]);
 
@@ -287,6 +300,44 @@ export function Dashboard() {
     return fundings.filter((f) => f.category_id === viewingCategory.id);
   }, [fundings, viewingCategory]);
 
+  // Grupos ("agrupar como") ya usados, tanto en gastos como en aportes, para
+  // sugerirlos en los formularios. Con `categoryId` solo los de esa categoría.
+  const etiquetasConocidas = (categoryId) => [
+    ...new Set(
+      [...expenses, ...fundings]
+        .filter((x) => x.etiqueta && (!categoryId || x.category_id === categoryId))
+        .map((x) => x.etiqueta)
+    ),
+  ];
+
+  // Presupuesto semanal activo de cada categoría y cómo va esta semana.
+  const planActivoPorCategoria = useMemo(() => {
+    const map = {};
+    for (const p of weeklyPlans) if (p.estado === 'activo') map[p.category_id] = p;
+    return map;
+  }, [weeklyPlans]);
+
+  const semanaPorCategoria = useMemo(() => {
+    const map = {};
+    for (const [categoryId, plan] of Object.entries(planActivoPorCategoria)) {
+      map[categoryId] = calcularPlan(
+        plan,
+        weeklyClosures.filter((c) => c.plan_id === plan.id),
+        expenses
+      );
+    }
+    return map;
+  }, [planActivoPorCategoria, weeklyClosures, expenses]);
+
+  const handleStopWeeklyPlan = async (plan) => {
+    if (!confirm('¿Apagar el presupuesto semanal de esta categoría? El saldo no cambia y se deja de mover el sobrante.')) return;
+    try {
+      await stopWeeklyPlan(plan.id);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const categoryManagement = {
     allCategories,
     addCategory: categoriesHook.addCategory,
@@ -397,10 +448,10 @@ export function Dashboard() {
 
   // Registra el ingreso y, si se repartió entre categorías, crea los
   // aportes correspondientes de una vez.
-  const handleAddIncome = async (values, repartoArray) => {
+  const handleAddIncome = async (values, repartoArray, etiqueta) => {
     const nuevoIngreso = await addIncome(values);
     if (repartoArray.length > 0) {
-      await addIncomeFundings(nuevoIngreso.id, repartoArray);
+      await addIncomeFundings(nuevoIngreso.id, repartoArray, etiqueta);
     }
     return nuevoIngreso;
   };
@@ -526,6 +577,7 @@ export function Dashboard() {
                     saldo={saldoPorCategoria[cat.id] || 0}
                     gastadoSemana={gastoSemanaPorCategoria[cat.id] || 0}
                     gastadoMes={gastoMesPorCategoria[cat.id] || 0}
+                    semana={semanaPorCategoria[cat.id]}
                     onOpenDetail={() => setViewingCategory(cat)}
                     onAddExpense={() => {
                       setPresetExpenseCategoryId(cat.id);
@@ -673,7 +725,12 @@ export function Dashboard() {
             />
           )
         ) : (
-          <IncomeForm categories={categories} onSubmit={handleAddIncome} onDone={closeNewRecordModal} />
+          <IncomeForm
+            categories={categories}
+            etiquetasSugeridas={etiquetasConocidas()}
+            onSubmit={handleAddIncome}
+            onDone={closeNewRecordModal}
+          />
         )}
       </Modal>
 
@@ -771,8 +828,21 @@ export function Dashboard() {
         {fundingCategory && (
           <AddFundingForm
             category={fundingCategory}
+            etiquetasSugeridas={etiquetasConocidas(fundingCategory.id)}
             onSubmit={handleAddFunding}
             onDone={() => setFundingCategory(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!weeklyPlanCategory} onClose={() => setWeeklyPlanCategory(null)} title="Presupuesto semanal">
+        {weeklyPlanCategory && (
+          <WeeklyPlanForm
+            category={weeklyPlanCategory}
+            saldo={saldoPorCategoria[weeklyPlanCategory.id] || 0}
+            otrasCategorias={categories.filter((c) => c.id !== weeklyPlanCategory.id)}
+            onSubmit={createWeeklyPlan}
+            onDone={() => setWeeklyPlanCategory(null)}
           />
         )}
       </Modal>
@@ -788,6 +858,17 @@ export function Dashboard() {
             fundingsDeCategoria={fundingsDeCategoriaEnDetalle}
             onUndoFunding={handleUndoFunding}
             onDeleteIncome={handleDeleteIncomeFromDetail}
+            onEditFundingEtiqueta={updateFundingEtiqueta}
+            plan={planActivoPorCategoria[viewingCategory.id]}
+            semana={semanaPorCategoria[viewingCategory.id]}
+            nombreCategoriaSobrante={
+              allCategories.find((c) => c.id === planActivoPorCategoria[viewingCategory.id]?.sobrante_category_id)?.nombre
+            }
+            onActivarPresupuesto={() => {
+              setWeeklyPlanCategory(viewingCategory);
+              setViewingCategory(null);
+            }}
+            onApagarPresupuesto={handleStopWeeklyPlan}
             expensesDeCategoria={expensesDeCategoriaEnDetalle}
             onAddExpense={() => {
               setPresetExpenseCategoryId(viewingCategory.id);

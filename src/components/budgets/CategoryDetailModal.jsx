@@ -17,6 +17,12 @@ export function CategoryDetailModal({
   fundingsDeCategoria,
   onUndoFunding,
   onDeleteIncome,
+  onEditFundingEtiqueta,
+  plan,
+  semana,
+  nombreCategoriaSobrante,
+  onActivarPresupuesto,
+  onApagarPresupuesto,
   expensesDeCategoria,
   onAddExpense,
   onAddFunds,
@@ -54,17 +60,30 @@ export function CategoryDetailModal({
   // Grupos dentro de la categoría (ej: "Samsung A06" agrupa la pantalla, la
   // placa, etc. dentro de "Celulares"), para ver cuánto se ha ido en un
   // artículo puntual sin salir de la categoría.
+  // Cada grupo suma lo gastado (gastos) y lo ingresado (aportes con el mismo
+  // nombre), y de ahí sale la ganancia: ingresado - gastado. Es solo para ver
+  // resultados, no cambia el saldo.
   const grupos = useMemo(() => {
     const porNombre = new Map();
+    const get = (nombre) =>
+      porNombre.get(nombre) || { nombre, gastado: 0, ingresado: 0, cantidad: 0 };
     for (const exp of expensesOrdenados) {
       if (!exp.etiqueta) continue;
-      const actual = porNombre.get(exp.etiqueta) || { nombre: exp.etiqueta, total: 0, cantidad: 0 };
-      actual.total += Number(exp.monto);
+      const actual = get(exp.etiqueta);
+      actual.gastado += Number(exp.monto);
       actual.cantidad += 1;
       porNombre.set(exp.etiqueta, actual);
     }
-    return [...porNombre.values()].sort((a, b) => b.total - a.total);
-  }, [expensesOrdenados]);
+    for (const f of fundingsDeCategoria) {
+      if (!f.etiqueta) continue;
+      const actual = get(f.etiqueta);
+      actual.ingresado += Number(f.monto);
+      porNombre.set(f.etiqueta, actual);
+    }
+    return [...porNombre.values()].sort((a, b) => b.gastado + b.ingresado - (a.gastado + a.ingresado));
+  }, [expensesOrdenados, fundingsDeCategoria]);
+
+  const grupoSeleccionado = grupos.find((g) => g.nombre === grupoActivo) || null;
 
   const expensesFiltrados = grupoActivo
     ? expensesOrdenados.filter((exp) => exp.etiqueta === grupoActivo)
@@ -72,8 +91,11 @@ export function CategoryDetailModal({
   const gastosVisibles = expensesFiltrados.slice(0, expenseLimit);
   const hayMasGastos = expensesFiltrados.length > expenseLimit;
 
-  const fundingsVisibles = fundingsDeCategoria.slice(0, fundingLimit);
-  const hayMasFundings = fundingsDeCategoria.length > fundingLimit;
+  const fundingsFiltrados = grupoActivo
+    ? fundingsDeCategoria.filter((f) => f.etiqueta === grupoActivo)
+    : fundingsDeCategoria;
+  const fundingsVisibles = fundingsFiltrados.slice(0, fundingLimit);
+  const hayMasFundings = fundingsFiltrados.length > fundingLimit;
 
   return (
     <div className="category-detail">
@@ -104,6 +126,43 @@ export function CategoryDetailModal({
         <span>Mes: <strong><Amount value={gastadoMes} /></strong></span>
       </div>
 
+      <div className="category-detail__grupos">
+        <span className="category-detail__expenses-title">Presupuesto semanal</span>
+        {plan && semana?.estado === 'activo' ? (
+          <>
+            <div className="category-detail__stats">
+              <span>Esta semana: <strong><Amount value={semana.disponible} /></strong></span>
+              <span>Semana: <strong>{semana.semanaActual} de {semana.totalSemanas}</strong></span>
+              <span>Por semana: <strong><Amount value={semana.monto} /></strong></span>
+            </div>
+            {semana.deuda > 0 && (
+              <p className="dashboard__empty">
+                Arrastras <Amount value={semana.deuda} /> de la semana anterior (ya descontado arriba).
+              </p>
+            )}
+            <p className="dashboard__empty">
+              {nombreCategoriaSobrante
+                ? `El sobrante de cada semana se mueve a ${nombreCategoriaSobrante}.`
+                : 'El sobrante de cada semana se queda en esta categoría.'}
+            </p>
+            <button type="button" className="category-detail__show-more" onClick={() => onApagarPresupuesto(plan)}>
+              Apagar presupuesto semanal
+            </button>
+          </>
+        ) : plan && semana?.estado === 'pendiente' ? (
+          <>
+            <p className="dashboard__empty">Parte el {semana.inicio}.</p>
+            <button type="button" className="category-detail__show-more" onClick={() => onApagarPresupuesto(plan)}>
+              Cancelar presupuesto semanal
+            </button>
+          </>
+        ) : (
+          <button type="button" className="category-detail__show-more" onClick={onActivarPresupuesto}>
+            Activar presupuesto semanal
+          </button>
+        )}
+      </div>
+
       <div className="category-detail__actions">
         <button type="button" onClick={onAddExpense}>+ Gasto</button>
         <button type="button" onClick={onAddFunds}>+ Agregar plata</button>
@@ -112,11 +171,17 @@ export function CategoryDetailModal({
 
       <div className="category-detail__fundings">
         <span className="category-detail__expenses-title">Aportes recibidos</span>
-        {fundingsDeCategoria.length === 0 ? (
-          <p className="dashboard__empty">Todavía no hay aportes en esta categoría.</p>
+        {fundingsFiltrados.length === 0 ? (
+          <p className="dashboard__empty">Todavía no hay aportes en {grupoActivo ? 'este grupo' : 'esta categoría'}.</p>
         ) : (
           <>
-            <FundingHistory fundings={fundingsVisibles} onUndo={onUndoFunding} onDeleteIncome={onDeleteIncome} />
+            <FundingHistory
+              fundings={fundingsVisibles}
+              onUndo={onUndoFunding}
+              onDeleteIncome={onDeleteIncome}
+              onEditEtiqueta={onEditFundingEtiqueta}
+              etiquetasSugeridas={grupos.map((g) => g.nombre)}
+            />
             {hayMasFundings && (
               <button
                 type="button"
@@ -161,10 +226,17 @@ export function CategoryDetailModal({
                   setExpenseLimit(4);
                 }}
               >
-                {g.nombre} · <Amount value={g.total} /> ({g.cantidad})
+                {g.nombre} · <Amount value={g.gastado} /> ({g.cantidad})
               </button>
             ))}
           </div>
+          {grupoSeleccionado && (
+            <div className="category-detail__stats">
+              <span>Gastado: <strong><Amount value={grupoSeleccionado.gastado} /></strong></span>
+              <span>Ingresado: <strong><Amount value={grupoSeleccionado.ingresado} /></strong></span>
+              <span>Ganancia: <strong><Amount value={grupoSeleccionado.ingresado - grupoSeleccionado.gastado} /></strong></span>
+            </div>
+          )}
         </div>
       )}
 

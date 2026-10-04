@@ -36,7 +36,7 @@ export function useCategoryFundings(userId) {
   // Aporte manual directo a una categoría (ej: vendiste algo y le sumas esa plata).
   // `incomeId` (opcional): si este aporte viene de un ingreso creado junto con él
   // (ver `handleAddFunding` en Dashboard), para dejarlo enlazado.
-  const addManualFunding = useCallback(async ({ categoryId, monto, nota, incomeId }) => {
+  const addManualFunding = useCallback(async ({ categoryId, monto, nota, incomeId, etiqueta }) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
@@ -50,6 +50,7 @@ export function useCategoryFundings(userId) {
           origen: 'manual',
           nota: nota?.trim() || null,
           income_id: incomeId || null,
+          etiqueta: etiqueta?.trim() || null,
         })
         .select()
         .single()
@@ -65,7 +66,7 @@ export function useCategoryFundings(userId) {
 
   // Reparte un ingreso ya registrado entre varias categorías de una vez.
   // `reparto` es un array de { categoryId, monto }.
-  const addIncomeFundings = useCallback(async (incomeId, reparto) => {
+  const addIncomeFundings = useCallback(async (incomeId, reparto, etiqueta) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     const filas = reparto
       .filter((r) => r.monto > 0)
@@ -75,6 +76,7 @@ export function useCategoryFundings(userId) {
         monto: r.monto,
         origen: 'ingreso',
         income_id: incomeId,
+        etiqueta: etiqueta?.trim() || null,
       }));
     if (filas.length === 0) return [];
 
@@ -90,6 +92,20 @@ export function useCategoryFundings(userId) {
     setFundings((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
+  // Cambia (o quita, si queda vacío) el grupo de un aporte ya existente.
+  const updateFundingEtiqueta = useCallback(async (id, etiqueta) => {
+    const nuevo = etiqueta?.trim() || null;
+    const { data, error: updateError } = await supabase
+      .from('category_fundings')
+      .update({ etiqueta: nuevo })
+      .eq('id', id)
+      .select()
+      .single();
+    if (updateError) throw new Error('No se pudo cambiar el grupo del aporte.');
+    setFundings((prev) => prev.map((f) => (f.id === id ? data : f)));
+    return data;
+  }, []);
+
   const totalPorCategoria = useCallback(() => {
     const map = {};
     for (const f of fundings) {
@@ -98,5 +114,5 @@ export function useCategoryFundings(userId) {
     return map;
   }, [fundings]);
 
-  return { fundings, loading, error, addManualFunding, addIncomeFundings, deleteFunding, totalPorCategoria, refetch: fetchFundings };
+  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFundingEtiqueta, deleteFunding, totalPorCategoria, refetch: fetchFundings };
 }

@@ -1,4 +1,5 @@
-import { Undo2, Trash2, TrendingUp, Wallet } from 'lucide-react';
+import { useState } from 'react';
+import { Undo2, Trash2, TrendingUp, Wallet, Pencil, Check, X } from 'lucide-react';
 import { Amount } from '../ui/Amount';
 import './FundingHistory.css';
 
@@ -6,8 +7,29 @@ import './FundingHistory.css';
 // botón elimina ese ingreso completo, igual que en el antiguo apartado de
 // Movimientos. Un aporte "manual" (+ Agregar plata) no tiene ingreso que
 // borrar, así que solo se puede deshacer el aporte en sí.
-export function FundingHistory({ fundings, onUndo, onDeleteIncome }) {
+export function FundingHistory({ fundings, onUndo, onDeleteIncome, onEditEtiqueta, etiquetasSugeridas = [] }) {
+  const [editandoId, setEditandoId] = useState(null);
+  const [valor, setValor] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
   if (fundings.length === 0) return null;
+
+  const empezarEdicion = (f) => {
+    setEditandoId(f.id);
+    setValor(f.etiqueta || '');
+  };
+
+  const guardar = async (id) => {
+    setGuardando(true);
+    try {
+      await onEditEtiqueta(id, valor);
+      setEditandoId(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   return (
     <ul className="funding-history">
@@ -16,11 +38,61 @@ export function FundingHistory({ fundings, onUndo, onDeleteIncome }) {
           <span className="funding-history__icon">
             {f.origen === 'ingreso' ? <TrendingUp size={14} /> : <Wallet size={14} />}
           </span>
-          <span className="funding-history__texto">
-            {f.origen === 'ingreso' ? 'De un ingreso repartido' : 'Agregado a mano'}
-            {f.nota && ` · ${f.nota}`}
-          </span>
-          <span className="funding-history__monto">+<Amount value={f.monto} /></span>
+          {editandoId === f.id ? (
+            <>
+              <input
+                type="text"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="Agrupar como (vacío = sin grupo)"
+                maxLength={60}
+                list="funding-history-etiquetas"
+                autoFocus
+                style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}
+              />
+              <datalist id="funding-history-etiquetas">
+                {etiquetasSugeridas.map((et) => (
+                  <option key={et} value={et} />
+                ))}
+              </datalist>
+              <button
+                type="button"
+                className="funding-history__undo"
+                onClick={() => guardar(f.id)}
+                disabled={guardando}
+                aria-label="Guardar grupo"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                className="funding-history__undo"
+                onClick={() => setEditandoId(null)}
+                aria-label="Cancelar"
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="funding-history__texto">
+                {f.origen === 'ingreso' ? 'De un ingreso repartido' : 'Agregado a mano'}
+                {f.etiqueta && <strong> · {f.etiqueta}</strong>}
+                {f.nota && ` · ${f.nota}`}
+              </span>
+              <span className="funding-history__monto">+<Amount value={f.monto} /></span>
+              {onEditEtiqueta && (
+                <button
+                  type="button"
+                  className="funding-history__undo"
+                  onClick={() => empezarEdicion(f)}
+                  aria-label="Cambiar grupo"
+                >
+                  <Pencil size={14} />
+                </button>
+              )}
+            </>
+          )}
           {f.origen === 'ingreso' && f.income_id ? (
             <button
               type="button"
