@@ -27,6 +27,8 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState('');
+  // Resultado del último escaneo, pendiente de que el usuario lo confirme o lo edite.
+  const [scanResult, setScanResult] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleScanClick = () => fileInputRef.current?.click();
@@ -38,25 +40,50 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
 
     setScanning(true);
     setScanNotice('');
+    setScanResult(null);
     setError('');
     try {
-      const { monto: montoLeido, fecha: fechaLeida } = await scanReceipt(file);
-      if (montoLeido) setMonto(montoLeido);
-      if (fechaLeida) setFecha(fechaLeida);
-
-      if (montoLeido && fechaLeida) {
-        setScanNotice('✓ Monto y fecha leídos de la boleta — revísalos y elige la categoría.');
-      } else if (montoLeido) {
-        setScanNotice('✓ Monto leído — no se pudo leer la fecha, revísala.');
-      } else if (fechaLeida) {
-        setScanNotice('✓ Fecha leída — no se pudo leer el monto, ingrésalo a mano.');
-      } else {
-        setScanNotice('No se pudo leer la boleta con claridad. Ingrésalo a mano.');
-      }
+      const leido = await scanReceipt(file, categories);
+      setScanResult(leido);
     } catch (err) {
       setScanNotice(err.message);
     } finally {
       setScanning(false);
+    }
+  };
+
+  const nombreCategoriaLeida = categories.find((c) => c.id === scanResult?.categoryId)?.nombre;
+  const fechaLegible = (iso) => (iso ? iso.split('-').reverse().join('-') : null);
+  // Guardar directo solo si el escaneo trajo lo mínimo para un gasto completo.
+  const escaneoCompleto = !!(scanResult?.monto && scanResult?.fecha && scanResult?.categoryId);
+
+  // "No, editar": pasa lo leído al formulario para corregir cualquier cosa.
+  const editarEscaneo = () => {
+    if (scanResult.monto) setMonto(scanResult.monto);
+    if (scanResult.fecha) setFecha(scanResult.fecha);
+    if (scanResult.categoryId) setCategoryId(scanResult.categoryId);
+    if (scanResult.comercio) setNota(scanResult.comercio);
+    setScanResult(null);
+    setScanNotice('Revisa y corrige lo que haga falta, y guarda abajo.');
+  };
+
+  // "Sí, es eso": guarda el gasto tal cual lo leyó.
+  const guardarEscaneo = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await onSubmit({
+        categoryId: scanResult.categoryId,
+        monto: scanResult.monto,
+        fecha: scanResult.fecha,
+        nota: scanResult.comercio || null,
+        fundingCategoryId: null,
+        etiqueta: null,
+      });
+      onDone();
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
     }
   };
 
@@ -123,6 +150,27 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
             {scanning ? 'Leyendo la boleta…' : 'Escanear boleta'}
           </button>
           {scanNotice && <p className="expense-form__scan-notice">{scanNotice}</p>}
+          {scanResult && (
+            <div className="expense-form__scan-result">
+              <strong className="expense-form__scan-result-title">Esto leí de la boleta</strong>
+              <dl className="expense-form__scan-result-list">
+                <div><dt>Comercio</dt><dd>{scanResult.comercio || 'No se leyó'}</dd></div>
+                <div><dt>Monto</dt><dd>{scanResult.monto ? formatCurrency(scanResult.monto) : 'No se leyó'}</dd></div>
+                <div><dt>Fecha</dt><dd>{fechaLegible(scanResult.fecha) || 'No se leyó'}</dd></div>
+                <div><dt>Categoría</dt><dd>{nombreCategoriaLeida || 'Sin sugerencia'}</dd></div>
+              </dl>
+              <div className="expense-form__scan-result-actions">
+                {escaneoCompleto && (
+                  <Button type="button" fullWidth onClick={guardarEscaneo} disabled={loading}>
+                    {loading ? 'Guardando…' : 'Sí, es eso. Guardar'}
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" fullWidth onClick={editarEscaneo} disabled={loading}>
+                  {escaneoCompleto ? 'No, quiero editar' : 'Revisar y editar'}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

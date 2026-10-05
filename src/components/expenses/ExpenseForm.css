@@ -95,3 +95,49 @@
   color: var(--color-ink-soft);
   margin: 0 2px;
 }
+
+.expense-form__scan-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-primary-soft);
+}
+
+.expense-form__scan-result-title {
+  font-size: 13px;
+  color: var(--color-ink);
+}
+
+.expense-form__scan-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.expense-form__scan-result-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.expense-form__scan-result-list dt {
+  color: var(--color-ink-soft);
+}
+
+.expense-form__scan-result-list dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-ink);
+  text-align: right;
+}
+
+.expense-form__scan-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
