@@ -5,13 +5,10 @@ import './BudgetCard.css';
 // `asignado`: total que le has metido a esta categoría (ingresos repartidos
 // + "Agregar plata" + traspasos entrantes/salientes) — es tu presupuesto
 // real para ella. `saldo`: lo que te queda de eso (asignado - gastado).
-// `gastadoSemana` / `gastadoMes`: solo informativos.
 export function BudgetCard({
   category,
   asignado,
   saldo,
-  gastadoSemana,
-  gastadoMes,
   semana,
   onOpenDetail,
 }) {
@@ -58,11 +55,11 @@ export function BudgetCard({
         <span className="budget-card__saldo"><Amount value={conPlan ? semana.disponible : saldo} /></span>
       </div>
 
-      <div className="budget-card__stats">
-        <div><span>{conPlan ? 'Saldo total' : 'Total'}</span><b><Amount value={conPlan ? saldo : asignado} /></b></div>
-        <div><span>Semana</span><b><Amount value={gastadoSemana} /></b></div>
-        <div><span>Mes</span><b><Amount value={gastadoMes} /></b></div>
-      </div>
+      {conPlan && (
+        <div className="budget-card__stats">
+          <div><span>Saldo total</span><b><Amount value={saldo} /></b></div>
+        </div>
+      )}
     </div>
   );
 }
