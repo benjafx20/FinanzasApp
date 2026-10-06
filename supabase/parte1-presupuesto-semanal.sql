@@ -79,6 +79,7 @@ declare
   v_ultima int;
   v_deuda numeric;
   v_gasto numeric;
+  v_aportes numeric;
   v_disp numeric;
   v_saldo numeric;
   v_mover numeric;
@@ -102,7 +103,18 @@ begin
         from expenses
         where category_id = p.category_id and fecha between v_ini and v_fin;
 
-      v_disp := p.monto_semanal - v_deuda - v_gasto;
+      -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
+      -- sin contar los sobrantes que mueve este mismo proceso).
+      select coalesce(sum(monto), 0) into v_aportes
+        from category_fundings
+        where category_id = p.category_id and fecha between v_ini and v_fin;
+      v_aportes := v_aportes + coalesce((
+        select sum(monto) from budget_transfers
+        where to_category_id = p.category_id and fecha between v_ini and v_fin
+          and coalesce(nota, '') not like 'Sobrante semana%'
+      ), 0);
+
+      v_disp := p.monto_semanal + v_aportes - v_deuda - v_gasto;
       v_mover := 0;
       v_nueva_deuda := 0;
 

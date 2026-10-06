@@ -29,6 +29,8 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   const [scanNotice, setScanNotice] = useState('');
   // Resultado del último escaneo, pendiente de que el usuario lo confirme o lo edite.
   const [scanResult, setScanResult] = useState(null);
+  // Foto de la boleta escaneada: se guarda como comprobante junto con el gasto.
+  const [receiptBlob, setReceiptBlob] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleScanClick = () => fileInputRef.current?.click();
@@ -41,6 +43,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
     setScanning(true);
     setScanNotice('');
     setScanResult(null);
+    setReceiptBlob(null);
     setError('');
     try {
       const leido = await scanReceipt(file, categories);
@@ -63,8 +66,9 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
     if (scanResult.fecha) setFecha(scanResult.fecha);
     if (scanResult.categoryId) setCategoryId(scanResult.categoryId);
     if (scanResult.comercio) setNota(scanResult.comercio);
+    setReceiptBlob(scanResult.imagen || null);
     setScanResult(null);
-    setScanNotice('Revisa y corrige lo que haga falta, y guarda abajo.');
+    setScanNotice('Revisa y corrige lo que haga falta, y guarda abajo. La foto de la boleta se guardará con el gasto.');
   };
 
   // "Sí, es eso": guarda el gasto tal cual lo leyó.
@@ -79,6 +83,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
         nota: scanResult.comercio || null,
         fundingCategoryId: null,
         etiqueta: null,
+        receiptFile: scanResult.imagen || null,
       });
       onDone();
     } catch (err) {
@@ -106,7 +111,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
 
     setLoading(true);
     try {
-      await onSubmit({ categoryId, monto, fecha, nota: nota.trim() || null, fundingCategoryId: efectivoFundingId, etiqueta: etiqueta.trim() || null });
+      await onSubmit({ categoryId, monto, fecha, nota: nota.trim() || null, fundingCategoryId: efectivoFundingId, etiqueta: etiqueta.trim() || null, receiptFile: receiptBlob });
       onDone();
     } catch (err) {
       setError(err.message);

@@ -40,10 +40,17 @@ const gastoEnRango = (expenses, categoryId, ini, fin) =>
     .filter((e) => e.category_id === categoryId && e.fecha >= ini && e.fecha <= fin)
     .reduce((sum, e) => sum + Number(e.monto), 0);
 
+// Plata que entra a la categoría durante la semana (aportes, ingresos repartidos
+// o traspasos que le llegan): suma al presupuesto de esa semana.
+const aportesEnRango = (aportes, categoryId, ini, fin) =>
+  aportes
+    .filter((a) => a.category_id === categoryId && a.fecha >= ini && a.fecha <= fin)
+    .reduce((sum, a) => sum + Number(a.monto), 0);
+
 // Estado de un plan hoy. `closures` = cierres de ESE plan. Para semanas ya
 // cerradas se usa lo que guardó el proceso automático; si todavía no corrió
 // (ej. lunes muy temprano) se calcula igual con los gastos.
-export function calcularPlan(plan, closures, expenses, hoy = toISO(new Date())) {
+export function calcularPlan(plan, closures, expenses, aportes = [], hoy = toISO(new Date())) {
   if (hoy < plan.fecha_inicio) return { estado: 'pendiente', inicio: plan.fecha_inicio };
 
   let k = 1;
@@ -59,12 +66,14 @@ export function calcularPlan(plan, closures, expenses, hoy = toISO(new Date())) 
       deuda = Number(c.deuda_arrastrada);
     } else {
       const { ini, fin } = rangoSemana(plan.fecha_inicio, i);
-      deuda = Math.max(0, gastoEnRango(expenses, plan.category_id, ini, fin) + deuda - monto);
+      const extra = aportesEnRango(aportes, plan.category_id, ini, fin);
+      deuda = Math.max(0, gastoEnRango(expenses, plan.category_id, ini, fin) + deuda - monto - extra);
     }
   }
 
   const { ini, fin } = rangoSemana(plan.fecha_inicio, k);
   const gastado = gastoEnRango(expenses, plan.category_id, ini, fin);
+  const extra = aportesEnRango(aportes, plan.category_id, ini, fin);
   return {
     estado: 'activo',
     semanaActual: k,
@@ -72,7 +81,8 @@ export function calcularPlan(plan, closures, expenses, hoy = toISO(new Date())) 
     monto,
     deuda,
     gastado,
-    disponible: monto - deuda - gastado,
+    aportes: extra,
+    disponible: monto + extra - deuda - gastado,
     ini,
     fin,
   };

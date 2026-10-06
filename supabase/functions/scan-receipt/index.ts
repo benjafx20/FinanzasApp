@@ -18,10 +18,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Alias mantenido por Google que apunta al Flash más reciente.
+// Alias mantenido por Google que siempre apunta al Flash más reciente —
+// así no hay que andar actualizando el nombre del modelo a mano cada vez
+// que Google saca una versión nueva.
 const MODEL = 'gemini-flash-latest';
-const MAX_IMAGE_BYTES = 6_000_000;
-const MAX_CATEGORIAS = 80;
+const MAX_IMAGE_BYTES = 6_000_000; // ~6MB en base64, de sobra para una foto comprimida en el celular
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -33,17 +34,6 @@ function jsonResponse(body, status = 200) {
 function extraerJSON(texto) {
   const limpio = texto.replace(/```json|```/g, '').trim();
   return JSON.parse(limpio);
-}
-
-async function llamarGemini(apiKey, body) {
-  return await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body),
-    }
-  );
 }
 
 Deno.serve(async (req) => {
@@ -77,62 +67,50 @@ Deno.serve(async (req) => {
     }
     const tipoImagen = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
 
-    // Solo categorías con forma válida; el modelo elige por id y después se
-    // verifica que ese id exista en esta lista.
-    const lista = (Array.isArray(categorias) ? categorias : [])
-      .filter((c) => c && typeof c.id === 'string' && typeof c.nombre === 'string')
-      .slice(0, MAX_CATEGORIAS)
-      .map((c) => ({ id: c.id, nombre: c.nombre.trim().slice(0, 40) }));
-    const idsValidos = new Set(lista.map((c) => c.id));
+    const hoyISO = new Date().toISOString().slice(0, 10);
 
-    // Fecha de hoy en Chile, por si la boleta trae la fecha abreviada o sin año.
-    const hoyISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
-
-    const instrucciones =
-      `Eres un lector de boletas y recibos de Chile. Analiza la imagen y responde SOLO con este JSON, sin nada más:\n` +
-      `{"monto": <número>, "fecha": "<YYYY-MM-DD>", "comercio": "<texto>", "categoria_id": "<id de la lista>"}\n\n` +
-      `Reglas:\n` +
-      `- monto: el TOTAL final que se pagó, como entero en pesos chilenos, sin puntos ni signo. En Chile el punto separa miles ("12.990" es 12990). ` +
-      `No uses subtotal, neto, IVA, descuentos, vuelto, ni el efectivo entregado. Si hay propina y quedó incluida en el total pagado, el monto es ese total.\n` +
-      `- fecha: en Chile se escribe día/mes/año (ej. 05/10/2026 es el 5 de octubre de 2026). Conviértela a YYYY-MM-DD. ` +
-      `Si el año viene con 2 dígitos, usa 20xx. Hoy es ${hoyISO}.\n` +
-      `- comercio: nombre del local o marca (ej. "Copec", "Jumbo"), corto, sin dirección ni RUT.\n` +
-      `- categoria_id: de la siguiente lista elige el id de la categoría que mejor calce según el comercio y lo comprado ` +
-      `(por ejemplo, una estación de servicio con combustible va a una categoría de transporte o bencina si existe). ` +
-      `Si ninguna calza con claridad, pon null. Nunca inventes un id que no esté en la lista.\n` +
-      `- Si no logras leer algún dato con confianza, ponlo en null. No inventes valores.\n\n` +
-      `Categorías (id | nombre):\n` +
-      (lista.length ? lista.map((c) => `${c.id} | ${c.nombre}`).join('\n') : '(sin categorías)');
-
-    const baseBody = {
-      contents: [
-        {
-          parts: [
-            { inline_data: { mime_type: tipoImagen, data: image } },
-            { text: instrucciones },
-          ],
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0,
-      },
-    };
-
-    // Primero sin "pensar" (más rápido para una lectura simple). Si el modelo
-    // no acepta esa opción (400), se repite igual que antes.
-    let geminiRes = await llamarGemini(apiKey, {
-      ...baseBody,
-      generationConfig: { ...baseBody.generationConfig, thinkingConfig: { thinkingBudget: 0 } },
-    });
-    if (geminiRes.status === 400) {
-      geminiRes = await llamarGemini(apiKey, baseBody);
-    }
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { inline_data: { mime_type: tipoImagen, data: image } },
+                {
+                  text:
+                    `Lees boletas y recibos chilenos. Mira esta boleta y responde SOLO con este JSON, sin nada más:\n` +
+                    `{"monto": <monto TOTAL pagado, entero en pesos chilenos, sin puntos ni signo $>, "fecha": "<fecha en formato YYYY-MM-DD>"}\n` +
+                    `Si no logras leer el monto con confianza, pon "monto": null. ` +
+                    `Si no logras leer la fecha, pon "fecha": null (no inventes una fecha). ` +
+                    `Hoy es ${hoyISO}, por si la fecha de la boleta viene abreviada o sin año.`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0,
+          },
+        }),
+      }
+    );
 
     if (!geminiRes.ok) {
       const detalle = await geminiRes.text();
       console.error('[scan-receipt] Gemini error:', geminiRes.status, detalle);
-      return jsonResponse({ ok: false, error: 'No se pudo leer la boleta. Intenta de nuevo o ingrésalo a mano.' }, 502);
+      const saturado = geminiRes.status === 429 || geminiRes.status >= 500;
+      return jsonResponse({
+        ok: false,
+        error: saturado
+          ? 'Google está con mucha demanda ahora. Espera unos segundos y vuelve a escanear.'
+          : 'No se pudo leer la boleta. Intenta de nuevo o ingrésalo a mano.',
+      }, 200);
     }
 
     const data = await geminiRes.json();

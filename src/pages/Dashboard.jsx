@@ -15,6 +15,8 @@ import { TransferHistory } from '../components/budgets/TransferHistory';
 import { AddFundingForm } from '../components/budgets/AddFundingForm';
 import { CategoryDetailModal } from '../components/budgets/CategoryDetailModal';
 import { WeeklyPlanForm } from '../components/budgets/WeeklyPlanForm';
+import { WeeklySummaryCard } from '../components/budgets/WeeklySummaryCard';
+import { resumenSemanaPasada } from '../utils/weeklySummary';
 import { useWeeklyPlans } from '../hooks/useWeeklyPlans';
 import { calcularPlan } from '../utils/weeklyPlan';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
@@ -317,17 +319,54 @@ export function Dashboard() {
     return map;
   }, [weeklyPlans]);
 
+  // Plata que le entra a cada categoría (aportes y traspasos recibidos). Los
+  // sobrantes que mueve el cierre automático no cuentan como aporte.
+  const aportesParaSemana = useMemo(
+    () => [
+      ...fundings.map((f) => ({ category_id: f.category_id, fecha: f.fecha, monto: f.monto })),
+      ...transfers
+        .filter((t) => !(t.nota || '').startsWith('Sobrante semana'))
+        .map((t) => ({ category_id: t.to_category_id, fecha: t.fecha, monto: t.monto })),
+    ],
+    [fundings, transfers]
+  );
+
   const semanaPorCategoria = useMemo(() => {
     const map = {};
     for (const [categoryId, plan] of Object.entries(planActivoPorCategoria)) {
       map[categoryId] = calcularPlan(
         plan,
         weeklyClosures.filter((c) => c.plan_id === plan.id),
-        expenses
+        expenses,
+        aportesParaSemana
       );
     }
     return map;
-  }, [planActivoPorCategoria, weeklyClosures, expenses]);
+  }, [planActivoPorCategoria, weeklyClosures, expenses, aportesParaSemana]);
+
+  // Resumen de la semana que cerró el domingo; se oculta con "Entendido" y
+  // vuelve a aparecer solo cuando cierra otra semana.
+  const [resumenVisto, setResumenVisto] = useState(() => {
+    try {
+      return localStorage.getItem('resumen-semana-visto') || '';
+    } catch {
+      return '';
+    }
+  });
+  const resumenItems = useMemo(
+    () => resumenSemanaPasada(weeklyPlans, weeklyClosures),
+    [weeklyPlans, weeklyClosures]
+  );
+  const resumenFin = resumenItems.reduce((m, i) => (i.fin > m ? i.fin : m), '');
+  const mostrarResumen = resumenItems.length > 0 && resumenFin > resumenVisto;
+  const cerrarResumen = () => {
+    try {
+      localStorage.setItem('resumen-semana-visto', resumenFin);
+    } catch {
+      /* sin almacenamiento: se oculta igual hasta recargar */
+    }
+    setResumenVisto(resumenFin);
+  };
 
   const handleStopWeeklyPlan = async (plan) => {
     if (!confirm('¿Apagar el presupuesto semanal de esta categoría? El saldo no cambia y se deja de mover el sobrante.')) return;
@@ -559,6 +598,9 @@ export function Dashboard() {
       <main className="dashboard__content">
         {activeSection === 'overview' && (
           <>
+            {mostrarResumen && (
+              <WeeklySummaryCard items={resumenItems} categorias={allCategories} onDismiss={cerrarResumen} />
+            )}
             <section className="dashboard__section dashboard__section--wide">
               <div className="dashboard__section-header">
                 <h2 className="dashboard__section-title">Categorías</h2>

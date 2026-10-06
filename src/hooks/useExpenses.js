@@ -89,7 +89,7 @@ export function useExpenses(userId) {
   // categoría distinta a `categoryId` (ej: gasto categorizado en Celulares
   // pero pagado con la plata de Beca). Si no se pasa, se paga con el saldo
   // de su propia categoría (el caso normal).
-  const addExpense = useCallback(async ({ categoryId, monto, fecha, nota, fundingCategoryId, etiqueta }) => {
+  const addExpense = useCallback(async ({ categoryId, monto, fecha, nota, fundingCategoryId, etiqueta, receiptFile }) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
     if (!categoryId) throw new Error('Debes seleccionar una categoría.');
@@ -112,11 +112,29 @@ export function useExpenses(userId) {
       return pendiente;
     }
 
+    // Foto de la boleta (comprobante): si falla la subida, el gasto se guarda
+    // igual, solo que sin foto. Sin conexión no se guarda la foto.
+    let receiptPath = null;
+    if (receiptFile) {
+      try {
+        const path = `${userId}/${crypto.randomUUID()}.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(path, receiptFile, { contentType: 'image/jpeg' });
+        if (uploadError) console.warn('[useExpenses] no se pudo subir la boleta:', uploadError);
+        else receiptPath = path;
+      } catch (err) {
+        console.warn('[useExpenses] no se pudo subir la boleta:', err);
+      }
+    }
+    if (receiptPath) payload.receipt_path = receiptPath;
+
     const { data, error: insertError } = await withSessionRetry(() =>
       supabase.from('expenses').insert(payload).select(SELECT_EXPENSE).single()
     );
 
     if (insertError) {
+      if (receiptPath) supabase.storage.from('receipts').remove([receiptPath]);
       console.error('[useExpenses] addExpense:', insertError);
       throw new Error(`No se pudo registrar el gasto: ${insertError.message}`);
     }
@@ -161,6 +179,7 @@ export function useExpenses(userId) {
   }, [userId]);
 
   const deleteExpense = useCallback(async (expenseId) => {
+    const gasto = expenses.find((e) => e.id === expenseId);
     if (isPendingId(expenseId)) {
       removePendingExpense(userId, expenseId);
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
@@ -173,7 +192,9 @@ export function useExpenses(userId) {
 
     if (deleteError) throw new Error('No se pudo eliminar el gasto.');
     setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
-  }, [userId]);
+    // Borra también la foto de la boleta (si falla no importa: queda huérfana).
+    if (gasto?.receipt_path) supabase.storage.from('receipts').remove([gasto.receipt_path]);
+  }, [userId, expenses]);
 
   return { expenses, loading, error, addExpense, updateExpense, deleteExpense, refetch: fetchExpenses, syncPendingExpenses };
 }

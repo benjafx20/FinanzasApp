@@ -7,6 +7,15 @@ import { supabase } from '../lib/supabaseClient';
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 0.85;
 
+function base64ToBlob(base64) {
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/jpeg' });
+}
+
+// Devuelve { base64, blob }: el base64 se manda a leer y el blob es la misma
+// foto lista para guardarla como comprobante del gasto.
 function comprimirImagen(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -31,7 +40,8 @@ function comprimirImagen(file) {
       ctx.drawImage(img, 0, 0, width, height);
 
       const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-      resolve(dataUrl.split(',')[1]); // solo el base64, sin el prefijo data:...
+      const base64 = dataUrl.split(',')[1]; // solo el base64, sin el prefijo data:...
+      resolve({ base64, blob: base64ToBlob(base64) });
     };
 
     img.onerror = () => {
@@ -48,7 +58,7 @@ function comprimirImagen(file) {
 // null si no se pudo leer o decidir con confianza) o lanza un error con un
 // mensaje para mostrar.
 export async function scanReceipt(file, categorias = []) {
-  const base64 = await comprimirImagen(file);
+  const { base64, blob } = await comprimirImagen(file);
 
   const { data, error } = await supabase.functions.invoke('scan-receipt', {
     body: {
@@ -70,5 +80,6 @@ export async function scanReceipt(file, categorias = []) {
     fecha: data.fecha,
     comercio: data.comercio ?? null,
     categoryId: data.categoriaId ?? null,
+    imagen: blob,
   };
 }

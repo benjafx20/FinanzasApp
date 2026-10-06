@@ -66,22 +66,41 @@ export function CategoryDetailModal({
   const grupos = useMemo(() => {
     const porNombre = new Map();
     const get = (nombre) =>
-      porNombre.get(nombre) || { nombre, gastado: 0, ingresado: 0, cantidad: 0 };
+      porNombre.get(nombre) || { nombre, gastado: 0, ingresado: 0, cantidad: 0, primeraCompra: null, ultimaVenta: null };
     for (const exp of expensesOrdenados) {
       if (!exp.etiqueta) continue;
       const actual = get(exp.etiqueta);
       actual.gastado += Number(exp.monto);
       actual.cantidad += 1;
+      if (!actual.primeraCompra || exp.fecha < actual.primeraCompra) actual.primeraCompra = exp.fecha;
       porNombre.set(exp.etiqueta, actual);
     }
     for (const f of fundingsDeCategoria) {
       if (!f.etiqueta) continue;
       const actual = get(f.etiqueta);
       actual.ingresado += Number(f.monto);
+      if (!actual.ultimaVenta || f.fecha > actual.ultimaVenta) actual.ultimaVenta = f.fecha;
       porNombre.set(f.etiqueta, actual);
     }
     return [...porNombre.values()].sort((a, b) => b.gastado + b.ingresado - (a.gastado + a.ingresado));
   }, [expensesOrdenados, fundingsDeCategoria]);
+
+  // Rentabilidad: solo grupos que ya tienen compras (gastos) y ventas (ingresos).
+  // Los días van desde la primera compra hasta la última venta del grupo.
+  const diasEntre = (a, b) =>
+    Math.max(0, Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000));
+  const rentabilidad = grupos
+    .filter((g) => g.gastado > 0 && g.ingresado > 0)
+    .map((g) => ({
+      ...g,
+      ganancia: g.ingresado - g.gastado,
+      margen: ((g.ingresado - g.gastado) / g.gastado) * 100,
+      dias: g.primeraCompra && g.ultimaVenta ? diasEntre(g.primeraCompra, g.ultimaVenta) : null,
+    }))
+    .sort((a, b) => b.ganancia - a.ganancia);
+  const gananciaTotal = rentabilidad.reduce((s, g) => s + g.ganancia, 0);
+  const gastadoVendidos = rentabilidad.reduce((s, g) => s + g.gastado, 0);
+  const sinVender = grupos.filter((g) => g.gastado > 0 && g.ingresado === 0).map((g) => g.nombre);
 
   const grupoSeleccionado = grupos.find((g) => g.nombre === grupoActivo) || null;
 
@@ -135,6 +154,11 @@ export function CategoryDetailModal({
               <span>Semana: <strong>{semana.semanaActual} de {semana.totalSemanas}</strong></span>
               <span>Por semana: <strong><Amount value={semana.monto} /></strong></span>
             </div>
+            {semana.aportes > 0 && (
+              <p className="dashboard__empty">
+                Incluye <Amount value={semana.aportes} /> que agregaste esta semana.
+              </p>
+            )}
             {semana.deuda > 0 && (
               <p className="dashboard__empty">
                 Arrastras <Amount value={semana.deuda} /> de la semana anterior (ya descontado arriba).
@@ -236,6 +260,25 @@ export function CategoryDetailModal({
               <span>Ingresado: <strong><Amount value={grupoSeleccionado.ingresado} /></strong></span>
               <span>Ganancia: <strong><Amount value={grupoSeleccionado.ingresado - grupoSeleccionado.gastado} /></strong></span>
             </div>
+          )}
+        </div>
+      )}
+
+      {rentabilidad.length > 0 && (
+        <div className="category-detail__grupos">
+          <span className="category-detail__expenses-title">Rentabilidad por grupo</span>
+          <div className="category-detail__stats">
+            <span>Ganancia total: <strong><Amount value={gananciaTotal} /></strong></span>
+            <span>Margen: <strong>{Math.round((gananciaTotal / gastadoVendidos) * 100)}%</strong></span>
+          </div>
+          {rentabilidad.map((g, i) => (
+            <p key={g.nombre} className="dashboard__empty">
+              <strong>{i + 1}. {g.nombre}</strong>: <Amount value={g.ganancia} /> ({Math.round(g.margen)}%)
+              {g.dias !== null && ` · ${g.dias === 1 ? '1 día' : `${g.dias} días`} de la compra a la última venta`}
+            </p>
+          ))}
+          {sinVender.length > 0 && (
+            <p className="dashboard__empty">Sin vender aún: {sinVender.join(', ')}.</p>
           )}
         </div>
       )}

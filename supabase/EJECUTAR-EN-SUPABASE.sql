@@ -9,6 +9,7 @@
 alter table category_fundings add column if not exists etiqueta text;
 create index if not exists idx_category_fundings_etiqueta on category_fundings(etiqueta);
 
+
 -- PARTE 2b: permitir editar el grupo ("agrupar como") de un aporte ya creado.
 -- Hasta ahora la tabla solo permitía leer, crear y borrar aportes; falta el permiso de actualizar.
 -- Pegar en Supabase > SQL Editor > New query > Run. Es seguro ejecutarlo más de una vez.
@@ -19,6 +20,7 @@ create policy "category_fundings_update_own"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
 
 -- ============================================================
 -- PARTE 1: presupuesto semanal
@@ -101,6 +103,7 @@ declare
   v_ultima int;
   v_deuda numeric;
   v_gasto numeric;
+  v_aportes numeric;
   v_disp numeric;
   v_saldo numeric;
   v_mover numeric;
@@ -124,7 +127,18 @@ begin
         from expenses
         where category_id = p.category_id and fecha between v_ini and v_fin;
 
-      v_disp := p.monto_semanal - v_deuda - v_gasto;
+      -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
+      -- sin contar los sobrantes que mueve este mismo proceso).
+      select coalesce(sum(monto), 0) into v_aportes
+        from category_fundings
+        where category_id = p.category_id and fecha between v_ini and v_fin;
+      v_aportes := v_aportes + coalesce((
+        select sum(monto) from budget_transfers
+        where to_category_id = p.category_id and fecha between v_ini and v_fin
+          and coalesce(nota, '') not like 'Sobrante semana%'
+      ), 0);
+
+      v_disp := p.monto_semanal + v_aportes - v_deuda - v_gasto;
       v_mover := 0;
       v_nueva_deuda := 0;
 
@@ -179,3 +193,30 @@ select cron.schedule(
 -- Para revisar que quedó programado:
 -- select * from cron.job where jobname = 'presupuesto-semanal-cierre';
 -- Para probarlo a mano: select public.weekly_plan_sweep();
+
+
+-- PARTE 3: foto de la boleta guardada como comprobante del gasto.
+-- Pegar en Supabase > SQL Editor > New query > Run. Es seguro ejecutarlo más de una vez.
+
+-- Dónde se guarda la ruta de la foto de cada gasto.
+alter table expenses add column if not exists receipt_path text;
+
+-- Carpeta privada para las fotos (máx. 5 MB, solo imágenes).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('receipts', 'receipts', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+-- Cada usuario solo ve, sube y borra lo que está en su propia carpeta (su user id).
+drop policy if exists "receipts_select_own" on storage.objects;
+create policy "receipts_select_own" on storage.objects for select to authenticated
+  using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "receipts_insert_own" on storage.objects;
+create policy "receipts_insert_own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "receipts_delete_own" on storage.objects;
+create policy "receipts_delete_own" on storage.objects for delete to authenticated
+  using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);

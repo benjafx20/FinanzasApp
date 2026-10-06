@@ -1,8 +1,13 @@
+import { useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import { Modal } from '../ui/Modal';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Amount } from '../ui/Amount';
 import './ExpenseCard.css';
 
 export function ExpenseCard({ expense, onEdit, onDelete }) {
+  const [boletaUrl, setBoletaUrl] = useState(null);
+  const [abriendo, setAbriendo] = useState(false);
   const cat = expense.categories;
   const color = cat?.color || '#6B7280';
   const nombre = cat?.nombre || 'Sin categoría';
@@ -10,6 +15,17 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
     day: 'numeric',
     month: 'short',
   });
+
+  const verBoleta = async () => {
+    setAbriendo(true);
+    const { data, error } = await supabase.storage.from('receipts').createSignedUrl(expense.receipt_path, 300);
+    setAbriendo(false);
+    if (error || !data?.signedUrl) {
+      alert('No se pudo abrir la foto de la boleta.');
+      return;
+    }
+    setBoletaUrl(data.signedUrl);
+  };
 
   return (
     <div className="ticket">
@@ -33,6 +49,11 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
         </div>
       </button>
       <div className="ticket__perforation" aria-hidden="true" />
+      {expense.receipt_path && (
+        <button className="ticket__receipt" onClick={verBoleta} disabled={abriendo}>
+          {abriendo ? 'Abriendo…' : 'Ver boleta'}
+        </button>
+      )}
       <button
         className="ticket__delete"
         onClick={() => onDelete(expense.id)}
@@ -40,6 +61,9 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
       >
         Eliminar
       </button>
+      <Modal open={!!boletaUrl} onClose={() => setBoletaUrl(null)} title="Boleta">
+        {boletaUrl && <img src={boletaUrl} alt="Foto de la boleta" style={{ width: '100%', borderRadius: 8 }} />}
+      </Modal>
     </div>
   );
 }
