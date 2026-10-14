@@ -4,11 +4,13 @@
 // (no el balance de HOY — el de ESE momento, reconstruido desde el
 // historial completo de aportes/traspasos/gastos).
 
+import { fechaLocalISO } from './dates';
+
 function ultimoDiaDelMes(monthKey) {
   const [y, m] = monthKey.split('-').map(Number);
   // Día 0 del mes siguiente = último día de este mes.
   const ultimo = new Date(y, m, 0);
-  return ultimo.toISOString().slice(0, 10);
+  return fechaLocalISO(ultimo);
 }
 
 export function mesAnteriorA(monthKey) {

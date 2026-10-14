@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { alertar } from '../../utils/dialogs';
 import { supabase } from '../../lib/supabaseClient';
 import { Modal } from '../ui/Modal';
 import { CategoryIcon } from '../../utils/CategoryIcon';
@@ -21,7 +22,7 @@ export function ExpenseCard({ expense, onEdit, onDelete }) {
     const { data, error } = await supabase.storage.from('receipts').createSignedUrl(expense.receipt_path, 300);
     setAbriendo(false);
     if (error || !data?.signedUrl) {
-      alert('No se pudo abrir la foto de la boleta.');
+      alertar('No se pudo abrir la foto de la boleta.');
       return;
     }
     setBoletaUrl(data.signedUrl);

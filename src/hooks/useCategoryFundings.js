@@ -92,16 +92,32 @@ export function useCategoryFundings(userId) {
     setFundings((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  // Cambia (o quita, si queda vacío) el grupo de un aporte ya existente.
-  const updateFundingEtiqueta = useCallback(async (id, etiqueta) => {
-    const nuevo = etiqueta?.trim() || null;
+  // Edita un aporte ya existente. `cambios` puede traer cualquiera de:
+  // monto, fecha, nota, etiqueta (solo se tocan los que vengan).
+  const updateFunding = useCallback(async (id, cambios) => {
+    const fila = {};
+    if ('monto' in cambios) {
+      const m = Number(cambios.monto);
+      if (!m || m <= 0) throw new Error('El monto debe ser mayor a 0.');
+      fila.monto = m;
+    }
+    if ('fecha' in cambios) {
+      if (!cambios.fecha) throw new Error('Falta la fecha.');
+      fila.fecha = cambios.fecha;
+    }
+    if ('nota' in cambios) fila.nota = cambios.nota?.trim() || null;
+    if ('etiqueta' in cambios) fila.etiqueta = cambios.etiqueta?.trim() || null;
+
     const { data, error: updateError } = await supabase
       .from('category_fundings')
-      .update({ etiqueta: nuevo })
+      .update(fila)
       .eq('id', id)
       .select()
       .single();
-    if (updateError) throw new Error('No se pudo cambiar el grupo del aporte.');
+    if (updateError) {
+      console.error('[useCategoryFundings] updateFunding:', updateError);
+      throw new Error('No se pudo editar el aporte.');
+    }
     setFundings((prev) => prev.map((f) => (f.id === id ? data : f)));
     return data;
   }, []);
@@ -114,5 +130,5 @@ export function useCategoryFundings(userId) {
     return map;
   }, [fundings]);
 
-  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFundingEtiqueta, deleteFunding, totalPorCategoria, refetch: fetchFundings };
+  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFunding, deleteFunding, totalPorCategoria, refetch: fetchFundings };
 }

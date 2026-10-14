@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { hoyISO } from '../../utils/dates';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
@@ -9,7 +10,7 @@ export function DebtForm({ onSubmit, onDone }) {
   const [tipo, setTipo] = useState('prestado');
   const [persona, setPersona] = useState('');
   const [monto, setMonto] = useState('');
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(() => hoyISO());
   const [nota, setNota] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

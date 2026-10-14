@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { confirmar } from '../../utils/dialogs';
 import { ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Pencil, Plus } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Modal } from '../ui/Modal';
@@ -24,7 +25,7 @@ export function ManageCategoriesModal({ categories, onMove, onToggleHidden, onCh
       const mensaje = total > 0
         ? `"${cat.nombre}" tiene ${usage.gastos} gasto(s) y ${usage.recurrentes} gasto(s) recurrente(s) asociados.\n\nNo se borrará ningún gasto, pero perderán la categoría asignada (quedarán marcados como "Sin categoría").\n\n¿Quieres continuar?`
         : `¿Eliminar la categoría "${cat.nombre}"?`;
-      if (!window.confirm(mensaje)) {
+      if (!(await confirmar(mensaje))) {
         setBusyId(null);
         return;
       }

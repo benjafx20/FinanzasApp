@@ -1,9 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 import { getPendingExpenses, queuePendingExpense, removePendingExpense, updatePendingExpense } from '../utils/offlineQueue';
+import { guardarBoleta, obtenerBoleta, vincularBoleta, borrarBoleta, boletasVinculadas } from '../utils/receiptOutbox';
 
 const SELECT_EXPENSE =
   '*, categories!expenses_category_id_fkey(id, nombre, icono, color), funding:funding_category_id(id, nombre, icono, color)';
+
+// Sube la foto de una boleta guardada sin conexión y la asocia a su gasto.
+// Si algo falla, la foto queda guardada y se reintenta en la próxima sincronización.
+async function subirBoletaPendiente(userId, entrada) {
+  try {
+    const path = `${userId}/${crypto.randomUUID()}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from('receipts')
+      .upload(path, entrada.blob, { contentType: 'image/jpeg' });
+    if (uploadError) return;
+    const { error: updateError } = await supabase
+      .from('expenses')
+      .update({ receipt_path: path })
+      .eq('id', entrada.expenseId);
+    if (updateError) {
+      supabase.storage.from('receipts').remove([path]);
+      return;
+    }
+    await borrarBoleta(entrada.key);
+  } catch {
+    /* se reintenta en la próxima sincronización */
+  }
+}
 
 function isPendingId(id) {
   return typeof id === 'string' && id.startsWith('pending-');
@@ -62,18 +86,30 @@ export function useExpenses(userId) {
   const syncPendingExpenses = useCallback(async () => {
     if (!userId || !navigator.onLine || sincronizandoRef.current) return;
     const pendientes = getPendingExpenses(userId);
-    if (pendientes.length === 0) return;
+    const fotosPendientes = await boletasVinculadas().catch(() => []);
+    if (pendientes.length === 0 && fotosPendientes.length === 0) return;
 
     sincronizandoRef.current = true;
     try {
       for (const pendiente of pendientes) {
         const { pending: _pending, id: _id, created_at: _createdAt, ...payload } = pendiente;
-        const { error: insertError } = await withSessionRetry(() =>
-          supabase.from('expenses').insert(payload)
+        const { data: creado, error: insertError } = await withSessionRetry(() =>
+          supabase.from('expenses').insert(payload).select('id').single()
         );
         // Si falla uno (ej: se cortó la conexión de nuevo a mitad de camino),
         // se deja en la cola y se reintenta la próxima vez.
-        if (!insertError) removePendingExpense(userId, pendiente.id);
+        if (insertError) continue;
+        removePendingExpense(userId, pendiente.id);
+        // Si el gasto tenía foto de boleta, ahora que existe se sube también.
+        const foto = await obtenerBoleta(pendiente.id).catch(() => null);
+        if (foto) {
+          await vincularBoleta(pendiente.id, creado.id);
+          await subirBoletaPendiente(userId, { ...foto, expenseId: creado.id });
+        }
+      }
+      // Fotos que quedaron sin subir de una sincronización anterior.
+      for (const foto of await boletasVinculadas().catch(() => [])) {
+        await subirBoletaPendiente(userId, foto);
       }
     } finally {
       sincronizandoRef.current = false;
@@ -108,12 +144,14 @@ export function useExpenses(userId) {
     // como "sin sincronizar". Se sube solo apenas vuelve la señal.
     if (!navigator.onLine) {
       const pendiente = queuePendingExpense(userId, payload);
+      // La foto de la boleta se guarda aparte y se sube junto con el gasto.
+      if (receiptFile) await guardarBoleta(pendiente.id, receiptFile).catch(() => {});
       setExpenses((prev) => [pendiente, ...prev]);
       return pendiente;
     }
 
     // Foto de la boleta (comprobante): si falla la subida, el gasto se guarda
-    // igual, solo que sin foto. Sin conexión no se guarda la foto.
+    // igual, solo que sin foto.
     let receiptPath = null;
     if (receiptFile) {
       try {
@@ -182,6 +220,7 @@ export function useExpenses(userId) {
     const gasto = expenses.find((e) => e.id === expenseId);
     if (isPendingId(expenseId)) {
       removePendingExpense(userId, expenseId);
+      borrarBoleta(expenseId).catch(() => {});
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
       return;
     }

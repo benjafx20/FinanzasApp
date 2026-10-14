@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { hoyISO } from '../../utils/dates';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
@@ -15,7 +16,7 @@ import './IncomeForm.css';
 export function IncomeForm({ income, categories, etiquetasSugeridas = [], onSubmit, onDone }) {
   const isEditing = !!income;
   const [monto, setMonto] = useState(income?.monto ?? '');
-  const [fecha, setFecha] = useState(income?.fecha ?? (() => new Date().toISOString().slice(0, 10))());
+  const [fecha, setFecha] = useState(income?.fecha ?? (() => hoyISO())());
   const [nota, setNota] = useState(income?.nota ?? '');
   const [etiqueta, setEtiqueta] = useState('');
   const [reparto, setReparto] = useState({}); // { categoryId: monto }

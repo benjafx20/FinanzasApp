@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { alertar, confirmar } from '../utils/dialogs';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useExpenses } from '../hooks/useExpenses';
@@ -15,10 +16,14 @@ import { TransferHistory } from '../components/budgets/TransferHistory';
 import { AddFundingForm } from '../components/budgets/AddFundingForm';
 import { CategoryDetailModal } from '../components/budgets/CategoryDetailModal';
 import { WeeklyPlanForm } from '../components/budgets/WeeklyPlanForm';
+import { EditFundingModal } from '../components/budgets/EditFundingModal';
+import { IncomeAdjustModal } from '../components/budgets/IncomeAdjustModal';
+import { useWeeklyBudgetView } from '../hooks/useWeeklyBudgetView';
+import { useIncomeAdjustment } from '../hooks/useIncomeAdjustment';
+import { etiquetasDe } from '../utils/etiquetas';
+import { limpiarBoletasHuerfanas } from '../utils/receiptCleanup';
 import { WeeklySummaryCard } from '../components/budgets/WeeklySummaryCard';
-import { resumenSemanaPasada } from '../utils/weeklySummary';
 import { useWeeklyPlans } from '../hooks/useWeeklyPlans';
-import { calcularPlan } from '../utils/weeklyPlan';
 import { ExpenseForm } from '../components/expenses/ExpenseForm';
 import { ExpenseCalendar } from '../components/expenses/ExpenseCalendar';
 const MonthlyTrendChart = lazy(() =>
@@ -74,6 +79,7 @@ export function Dashboard() {
   const [transferFromCategory, setTransferFromCategory] = useState(null);
   const [fundingCategory, setFundingCategory] = useState(null);
   const [weeklyPlanCategory, setWeeklyPlanCategory] = useState(null);
+  const [editingFunding, setEditingFunding] = useState(null);
   const [viewingCategory, setViewingCategory] = useState(null);
   const [editingCategoryDirect, setEditingCategoryDirect] = useState(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
@@ -117,7 +123,7 @@ export function Dashboard() {
     fundings,
     addManualFunding,
     addIncomeFundings,
-    updateFundingEtiqueta,
+    updateFunding,
     deleteFunding,
     totalPorCategoria,
     refetch: refetchFundings,
@@ -302,80 +308,40 @@ export function Dashboard() {
     return fundings.filter((f) => f.category_id === viewingCategory.id);
   }, [fundings, viewingCategory]);
 
-  // Grupos ("agrupar como") ya usados, tanto en gastos como en aportes, para
-  // sugerirlos en los formularios. Con `categoryId` solo los de esa categoría.
-  const etiquetasConocidas = (categoryId) => [
-    ...new Set(
-      [...expenses, ...fundings]
-        .filter((x) => x.etiqueta && (!categoryId || x.category_id === categoryId))
-        .map((x) => x.etiqueta)
-    ),
-  ];
+  // Grupos ("agrupar como") ya usados, para sugerirlos en los formularios.
+  const etiquetasConocidas = (categoryId) => etiquetasDe([...expenses, ...fundings], categoryId);
 
-  // Presupuesto semanal activo de cada categoría y cómo va esta semana.
-  const planActivoPorCategoria = useMemo(() => {
-    const map = {};
-    for (const p of weeklyPlans) if (p.estado === 'activo') map[p.category_id] = p;
-    return map;
-  }, [weeklyPlans]);
+  const {
+    planActivoPorCategoria,
+    semanaPorCategoria,
+    resumenItems,
+    mostrarResumen,
+    cerrarResumen,
+    handleStopWeeklyPlan,
+  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, stopWeeklyPlan });
 
-  // Plata que le entra a cada categoría (aportes y traspasos recibidos). Los
-  // sobrantes que mueve el cierre automático no cuentan como aporte.
-  const aportesParaSemana = useMemo(
-    () => [
-      ...fundings.map((f) => ({ category_id: f.category_id, fecha: f.fecha, monto: f.monto })),
-      ...transfers
-        .filter((t) => !(t.nota || '').startsWith('Sobrante semana'))
-        .map((t) => ({ category_id: t.to_category_id, fecha: t.fecha, monto: t.monto })),
-    ],
-    [fundings, transfers]
-  );
-
-  const semanaPorCategoria = useMemo(() => {
-    const map = {};
-    for (const [categoryId, plan] of Object.entries(planActivoPorCategoria)) {
-      map[categoryId] = calcularPlan(
-        plan,
-        weeklyClosures.filter((c) => c.plan_id === plan.id),
-        expenses,
-        aportesParaSemana
-      );
-    }
-    return map;
-  }, [planActivoPorCategoria, weeklyClosures, expenses, aportesParaSemana]);
-
-  // Resumen de la semana que cerró el domingo; se oculta con "Entendido" y
-  // vuelve a aparecer solo cuando cierra otra semana.
-  const [resumenVisto, setResumenVisto] = useState(() => {
-    try {
-      return localStorage.getItem('resumen-semana-visto') || '';
-    } catch {
-      return '';
-    }
+  const {
+    incomeAjuste,
+    ajustando,
+    handleEditIncomeSubmit,
+    confirmarAjuste,
+    volverAEditar,
+    cancelarAjuste,
+  } = useIncomeAdjustment({
+    editingIncome,
+    setEditingIncome,
+    fundings,
+    allCategories,
+    saldoPorCategoria,
+    updateIncome,
+    updateFunding,
+    refetchFundings,
   });
-  const resumenItems = useMemo(
-    () => resumenSemanaPasada(weeklyPlans, weeklyClosures),
-    [weeklyPlans, weeklyClosures]
-  );
-  const resumenFin = resumenItems.reduce((m, i) => (i.fin > m ? i.fin : m), '');
-  const mostrarResumen = resumenItems.length > 0 && resumenFin > resumenVisto;
-  const cerrarResumen = () => {
-    try {
-      localStorage.setItem('resumen-semana-visto', resumenFin);
-    } catch {
-      /* sin almacenamiento: se oculta igual hasta recargar */
-    }
-    setResumenVisto(resumenFin);
-  };
 
-  const handleStopWeeklyPlan = async (plan) => {
-    if (!confirm('¿Apagar el presupuesto semanal de esta categoría? El saldo no cambia y se deja de mover el sobrante.')) return;
-    try {
-      await stopWeeklyPlan(plan.id);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
+  // Fotos de boletas que quedaron sin gasto asociado (a lo más una vez al día).
+  useEffect(() => {
+    if (user?.id) limpiarBoletasHuerfanas(user.id);
+  }, [user?.id]);
 
   const categoryManagement = {
     allCategories,
@@ -391,17 +357,17 @@ export function Dashboard() {
     try {
       await deleteExpense(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
 
   const handleDeleteGoal = async (id) => {
-    if (!confirm('¿Eliminar esta meta? Se perderá el historial de aportes.')) return;
+    if (!(await confirmar('¿Eliminar esta meta? Se perderá el historial de aportes.'))) return;
     try {
       await deleteGoal(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
@@ -409,43 +375,43 @@ export function Dashboard() {
     try {
       await markDebtAsPaid(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
   const handleDeleteDebt = async (id) => {
-    if (!confirm('¿Eliminar este registro?')) return;
+    if (!(await confirmar('¿Eliminar este registro?'))) return;
     try {
       await deleteDebt(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
   const handleDeleteRecurring = async (id) => {
-    if (!confirm('¿Eliminar este gasto recurrente? No se borrarán los gastos ya generados.')) return;
+    if (!(await confirmar('¿Eliminar este gasto recurrente? No se borrarán los gastos ya generados.'))) return;
     try {
       await deleteRecurring(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
   const handleUndoTransfer = async (id) => {
-    if (!confirm('¿Deshacer este movimiento entre categorías?')) return;
+    if (!(await confirmar('¿Deshacer este movimiento entre categorías?'))) return;
     try {
       await deleteTransfer(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
   const handleUndoFunding = async (id) => {
-    if (!confirm('¿Deshacer este aporte? Bajará el saldo de la categoría.')) return;
+    if (!(await confirmar('¿Deshacer este aporte? Bajará el saldo de la categoría.'))) return;
     try {
       await deleteFunding(id);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
@@ -454,7 +420,7 @@ export function Dashboard() {
   // aportes para que no quede plata "fantasma" en otra categoría antes de
   // borrar el ingreso en sí.
   const handleDeleteIncomeFromDetail = async (incomeId) => {
-    if (!confirm('¿Eliminar este ingreso? Se quitará también de todas las categorías en las que se repartió.')) return;
+    if (!(await confirmar('¿Eliminar este ingreso? Se quitará también de todas las categorías en las que se repartió.'))) return;
     try {
       const fundingsDelIngreso = fundings.filter((f) => f.income_id === incomeId);
       for (const f of fundingsDelIngreso) {
@@ -462,13 +428,13 @@ export function Dashboard() {
       }
       await deleteIncome(incomeId);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
   const handleDeleteCategoryFromDetail = async (cat) => {
     if (!cat.user_id) {
-      alert('Las categorías predefinidas no se pueden eliminar — puedes ocultarlas desde "Editar categorías".');
+      alertar('Las categorías predefinidas no se pueden eliminar — puedes ocultarlas desde "Editar categorías".');
       return;
     }
     const usage = await categoriesHook.checkCategoryUsage(cat.id);
@@ -476,12 +442,12 @@ export function Dashboard() {
     const mensaje = total > 0
       ? `"${cat.nombre}" tiene ${usage.gastos} gasto(s) y ${usage.recurrentes} gasto(s) recurrente(s) asociados.\n\nNo se borrará ningún gasto, pero perderán la categoría asignada (quedarán marcados como "Sin categoría").\n\n¿Quieres continuar?`
       : `¿Eliminar la categoría "${cat.nombre}"?`;
-    if (!window.confirm(mensaje)) return;
+    if (!(await confirmar(mensaje))) return;
     try {
       await categoriesHook.deleteCategory(cat.id);
       setViewingCategory(null);
     } catch (err) {
-      alert(err.message);
+      alertar(err.message);
     }
   };
 
@@ -794,7 +760,7 @@ export function Dashboard() {
         {editingIncome && (
           <IncomeForm
             income={editingIncome}
-            onSubmit={(values) => updateIncome(editingIncome.id, values)}
+            onSubmit={handleEditIncomeSubmit}
             onDone={() => setEditingIncome(null)}
           />
         )}
@@ -877,6 +843,25 @@ export function Dashboard() {
         )}
       </Modal>
 
+      <EditFundingModal
+        funding={editingFunding}
+        onClose={() => setEditingFunding(null)}
+        incomes={incomes}
+        fundings={fundings}
+        allCategories={allCategories}
+        saldoPorCategoria={saldoPorCategoria}
+        etiquetasSugeridas={editingFunding ? etiquetasConocidas(editingFunding.category_id) : []}
+        onSubmit={(cambios) => updateFunding(editingFunding.id, cambios)}
+      />
+
+      <IncomeAdjustModal
+        ajuste={incomeAjuste}
+        ajustando={ajustando}
+        onConfirm={confirmarAjuste}
+        onBack={volverAEditar}
+        onClose={cancelarAjuste}
+      />
+
       <Modal open={!!weeklyPlanCategory} onClose={() => setWeeklyPlanCategory(null)} title="Presupuesto semanal">
         {weeklyPlanCategory && (
           <WeeklyPlanForm
@@ -900,7 +885,10 @@ export function Dashboard() {
             fundingsDeCategoria={fundingsDeCategoriaEnDetalle}
             onUndoFunding={handleUndoFunding}
             onDeleteIncome={handleDeleteIncomeFromDetail}
-            onEditFundingEtiqueta={updateFundingEtiqueta}
+            onEditFunding={(f) => {
+              setViewingCategory(null);
+              setEditingFunding(f);
+            }}
             plan={planActivoPorCategoria[viewingCategory.id]}
             semana={semanaPorCategoria[viewingCategory.id]}
             nombreCategoriaSobrante={

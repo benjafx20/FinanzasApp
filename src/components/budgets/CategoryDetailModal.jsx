@@ -17,7 +17,7 @@ export function CategoryDetailModal({
   fundingsDeCategoria,
   onUndoFunding,
   onDeleteIncome,
-  onEditFundingEtiqueta,
+  onEditFunding,
   plan,
   semana,
   nombreCategoriaSobrante,
@@ -203,8 +203,7 @@ export function CategoryDetailModal({
               fundings={fundingsVisibles}
               onUndo={onUndoFunding}
               onDeleteIncome={onDeleteIncome}
-              onEditEtiqueta={onEditFundingEtiqueta}
-              etiquetasSugeridas={grupos.map((g) => g.nombre)}
+              onEdit={onEditFunding}
             />
             {hayMasFundings && (
               <button

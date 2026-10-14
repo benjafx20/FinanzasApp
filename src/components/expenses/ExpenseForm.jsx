@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { hoyISO } from '../../utils/dates';
 import { Camera, Loader2 } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
@@ -18,7 +19,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   const isEditing = !!expense;
   const [categoryId, setCategoryId] = useState(expense?.category_id ?? defaultCategoryId ?? categories[0]?.id ?? '');
   const [monto, setMonto] = useState(expense?.monto ?? '');
-  const [fecha, setFecha] = useState(expense?.fecha ?? (() => new Date().toISOString().slice(0, 10))());
+  const [fecha, setFecha] = useState(expense?.fecha ?? (() => hoyISO())());
   const [nota, setNota] = useState(expense?.nota ?? '');
   const [etiqueta, setEtiqueta] = useState(expense?.etiqueta ?? '');
   const [pagarConOtra, setPagarConOtra] = useState(!!expense?.funding_category_id);
@@ -33,7 +34,9 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   const [receiptBlob, setReceiptBlob] = useState(null);
   const fileInputRef = useRef(null);
 
+  const galleryInputRef = useRef(null);
   const handleScanClick = () => fileInputRef.current?.click();
+  const handleGalleryClick = () => galleryInputRef.current?.click();
 
   const handleFileSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -145,15 +148,35 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
             className="expense-form__scan-input"
             onChange={handleFileSelected}
           />
-          <button
-            type="button"
-            className="expense-form__scan-btn"
-            onClick={handleScanClick}
-            disabled={scanning}
-          >
-            {scanning ? <Loader2 size={16} className="expense-form__scan-spinner" /> : <Camera size={16} />}
-            {scanning ? 'Leyendo la boleta…' : 'Escanear boleta'}
-          </button>
+          {/* Sin `capture`: el celular deja elegir una foto o captura de la galería (boletas digitales). */}
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            className="expense-form__scan-input"
+            onChange={handleFileSelected}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="expense-form__scan-btn"
+              style={{ flex: 1 }}
+              onClick={handleScanClick}
+              disabled={scanning}
+            >
+              {scanning ? <Loader2 size={16} className="expense-form__scan-spinner" /> : <Camera size={16} />}
+              {scanning ? 'Leyendo la boleta…' : 'Escanear boleta'}
+            </button>
+            <button
+              type="button"
+              className="expense-form__scan-btn"
+              style={{ flex: 1 }}
+              onClick={handleGalleryClick}
+              disabled={scanning}
+            >
+              Desde la galería
+            </button>
+          </div>
           {scanNotice && <p className="expense-form__scan-notice">{scanNotice}</p>}
           {scanResult && (
             <div className="expense-form__scan-result">

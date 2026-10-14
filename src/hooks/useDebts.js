@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { hoyISO } from '../utils/dates';
 import { supabase } from '../lib/supabaseClient';
 
 // 'prestado': le prestaste plata a alguien (te deben).
@@ -52,7 +53,7 @@ export function useDebts(userId) {
         tipo,
         monto,
         nota: nota?.trim() || null,
-        fecha: fecha || new Date().toISOString().slice(0, 10),
+        fecha: fecha || hoyISO(),
       })
       .select()
       .single();
@@ -65,7 +66,7 @@ export function useDebts(userId) {
   const markAsPaid = useCallback(async (debtId) => {
     const { data, error: updateError } = await supabase
       .from('debts')
-      .update({ pagado: true, fecha_pago: new Date().toISOString().slice(0, 10) })
+      .update({ pagado: true, fecha_pago: hoyISO() })
       .eq('id', debtId)
       .select()
       .single();

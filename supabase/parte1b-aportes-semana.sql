@@ -1,4 +1,5 @@
--- PARTE 1b: los aportes de la semana suman al presupuesto semanal.
+-- PARTE 1b: el cierre semanal cuenta los aportes de la semana y los gastos
+-- que salen del saldo de la categoría (también los pagados con su plata).
 -- Pegar en Supabase > SQL Editor > New query > Run. Solo reemplaza la función de cierre.
 
 create or replace function public.weekly_plan_sweep()
@@ -39,7 +40,7 @@ begin
 
       select coalesce(sum(monto), 0) into v_gasto
         from expenses
-        where category_id = p.category_id and fecha between v_ini and v_fin;
+        where coalesce(funding_category_id, category_id) = p.category_id and fecha between v_ini and v_fin;
 
       -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
       -- sin contar los sobrantes que mueve este mismo proceso).

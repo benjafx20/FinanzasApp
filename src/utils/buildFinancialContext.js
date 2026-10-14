@@ -1,3 +1,4 @@
+import { hoyISO } from './dates';
 // Arma un resumen compacto (no todos los datos crudos) para mandarle al
 // asistente. Un resumen chico es mas rapido, mas barato, y mas facil de
 // que el modelo lo lea bien que un volcado gigante de filas de la base
@@ -60,7 +61,7 @@ export function buildFinancialContext({
     .map((i) => ({ fecha: i.fecha, monto: Number(i.monto), nota: i.nota || null }));
 
   return {
-    fechaHoy: new Date().toISOString().slice(0, 10),
+    fechaHoy: hoyISO(),
     balanceTotal: Math.round(balanceTotal),
     categorias: categoriasResumen,
     gastoDelMesActualPorCategoria: gastoMesPorCategoria,

@@ -101,7 +101,7 @@ begin
 
       select coalesce(sum(monto), 0) into v_gasto
         from expenses
-        where category_id = p.category_id and fecha between v_ini and v_fin;
+        where coalesce(funding_category_id, category_id) = p.category_id and fecha between v_ini and v_fin;
 
       -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
       -- sin contar los sobrantes que mueve este mismo proceso).

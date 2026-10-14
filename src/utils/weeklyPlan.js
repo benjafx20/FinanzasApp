@@ -35,9 +35,12 @@ export function rangoSemana(inicio, k) {
   return { ini, fin };
 }
 
+// Cuenta lo que sale del saldo de la categoría, igual que el saldo real: un
+// gasto se descuenta de `funding_category_id` si se pagó con la plata de otra
+// categoría, y si no, de la suya.
 const gastoEnRango = (expenses, categoryId, ini, fin) =>
   expenses
-    .filter((e) => e.category_id === categoryId && e.fecha >= ini && e.fecha <= fin)
+    .filter((e) => (e.funding_category_id || e.category_id) === categoryId && e.fecha >= ini && e.fecha <= fin)
     .reduce((sum, e) => sum + Number(e.monto), 0);
 
 // Plata que entra a la categoría durante la semana (aportes, ingresos repartidos
