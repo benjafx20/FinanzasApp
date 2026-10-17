@@ -134,6 +134,7 @@ export function Dashboard() {
     error: goalsError,
     addGoal,
     deleteGoal,
+    setGoalCompleted,
     addContribution,
     totalByGoal,
     refetch: refetchGoals,
@@ -226,6 +227,15 @@ export function Dashboard() {
   const totalFundingsPorCategoria = useMemo(() => totalPorCategoria(), [totalPorCategoria]);
   const netoTransferenciasPorCategoria = useMemo(() => netoPorCategoria(), [netoPorCategoria]);
 
+  // Lo que se mandó a metas de ahorro, por categoría de origen: sale del saldo.
+  const ahorradoPorCategoria = useMemo(() => {
+    const map = {};
+    for (const c of savingsContributions) {
+      if (c.source_category_id) map[c.source_category_id] = (map[c.source_category_id] || 0) + Number(c.monto);
+    }
+    return map;
+  }, [savingsContributions]);
+
   // El saldo real: nunca se resetea solo, sube con aportes/traspasos
   // entrantes, baja con traspasos salientes y gastos reales.
   const { asignadoPorCategoria, saldoPorCategoria } = useMemo(() => {
@@ -236,10 +246,11 @@ export function Dashboard() {
       const neto = netoTransferenciasPorCategoria[cat.id] || 0;
       const gastado = gastoParaSaldoPorCategoria[cat.id] || 0;
       asignadoPorCategoria[cat.id] = aportes + neto;
-      saldoPorCategoria[cat.id] = aportes + neto - gastado;
+      const ahorrado = ahorradoPorCategoria[cat.id] || 0;
+      saldoPorCategoria[cat.id] = aportes + neto - gastado - ahorrado;
     }
     return { asignadoPorCategoria, saldoPorCategoria };
-  }, [allCategories, totalFundingsPorCategoria, netoTransferenciasPorCategoria, gastoParaSaldoPorCategoria]);
+  }, [allCategories, totalFundingsPorCategoria, netoTransferenciasPorCategoria, gastoParaSaldoPorCategoria, ahorradoPorCategoria]);
 
   // Balance TOTAL (no del mes): cuánta plata deberías tener en total en
   // este momento, sumando el saldo real de todas las categorías. A
@@ -318,7 +329,7 @@ export function Dashboard() {
     mostrarResumen,
     cerrarResumen,
     handleStopWeeklyPlan,
-  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, stopWeeklyPlan });
+  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions, stopWeeklyPlan });
 
   const {
     incomeAjuste,
@@ -363,9 +374,28 @@ export function Dashboard() {
 
 
   const handleDeleteGoal = async (id) => {
-    if (!(await confirmar('¿Eliminar esta meta? Se perderá el historial de aportes.'))) return;
+    if (!(await confirmar('¿Eliminar esta meta? Se perderá el historial de aportes y la plata ahorrada volverá a las categorías de donde salió.'))) return;
     try {
       await deleteGoal(id);
+    } catch (err) {
+      alertar(err.message);
+    }
+  };
+
+  // Cerrar una meta: la plata ahorrada se da por usada (sigue descontada de las
+  // categorías de donde salió). Reabrirla permite eliminarla y recuperar la plata.
+  const handleCloseGoal = async (goal) => {
+    if (!(await confirmar(`¿Cerrar la meta "${goal.nombre}"? La plata ahorrada se da por usada y NO vuelve a las categorías.`, { titulo: 'Cerrar meta' }))) return;
+    try {
+      await setGoalCompleted(goal.id, true);
+    } catch (err) {
+      alertar(err.message);
+    }
+  };
+
+  const handleReopenGoal = async (goal) => {
+    try {
+      await setGoalCompleted(goal.id, false);
     } catch (err) {
       alertar(err.message);
     }
@@ -648,13 +678,15 @@ export function Dashboard() {
                 <p className="dashboard__empty">Sin metas todavía. Crea una para empezar a ahorrar.</p>
               ) : (
                 <div className="budget-scroll budget-scroll--compact">
-                  {goals.map((goal) => (
+                  {[...goals].sort((a, b) => Boolean(a.completed_at) - Boolean(b.completed_at)).map((goal) => (
                     <GoalCard
                       key={goal.id}
                       goal={goal}
                       acumulado={totalByGoal(goal.id)}
                       onAportar={() => setContributingGoal(goal)}
                       onDelete={handleDeleteGoal}
+                      onCerrar={handleCloseGoal}
+                      onReabrir={handleReopenGoal}
                     />
                   ))}
                 </div>
@@ -799,6 +831,8 @@ export function Dashboard() {
         {contributingGoal && (
           <ContributionForm
             goal={contributingGoal}
+            categories={categories}
+            saldoPorCategoria={saldoPorCategoria}
             onSubmit={addContribution}
             onDone={() => setContributingGoal(null)}
           />

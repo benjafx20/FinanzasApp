@@ -64,13 +64,34 @@ export function useSavingsGoals(userId) {
     setContributions((prev) => prev.filter((c) => c.goal_id !== goalId));
   }, []);
 
-  const addContribution = useCallback(async (goalId, monto) => {
+  // Cierra una meta (ya usaste la plata) o la reabre (completed = false). Cerrada,
+  // sus aportes siguen descontados de las categorías: la plata se gastó.
+  const setGoalCompleted = useCallback(async (goalId, completed) => {
+    const { data, error: updateError } = await supabase
+      .from('savings_goals')
+      .update({ completed_at: completed ? new Date().toISOString() : null })
+      .eq('id', goalId)
+      .select()
+      .single();
+    if (updateError) throw new Error('No se pudo actualizar la meta.');
+    setGoals((prev) => prev.map((g) => (g.id === goalId ? data : g)));
+    return data;
+  }, []);
+
+  // `sourceCategoryId`: categoría de donde sale la plata (se descuenta de su
+  // saldo). Null/vacío = plata de afuera, que no descuenta de ninguna.
+  const addContribution = useCallback(async (goalId, monto, sourceCategoryId) => {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto del aporte debe ser mayor a 0.');
 
     const { data, error: insertError } = await supabase
       .from('savings_contributions')
-      .insert({ goal_id: goalId, user_id: userId, monto })
+      .insert({
+        goal_id: goalId,
+        user_id: userId,
+        monto,
+        ...(sourceCategoryId ? { source_category_id: sourceCategoryId } : {}),
+      })
       .select()
       .single();
 
@@ -84,5 +105,5 @@ export function useSavingsGoals(userId) {
     [contributions]
   );
 
-  return { goals, contributions, loading, error, addGoal, deleteGoal, addContribution, totalByGoal, refetch: fetchAll };
+  return { goals, contributions, loading, error, addGoal, deleteGoal, setGoalCompleted, addContribution, totalByGoal, refetch: fetchAll };
 }

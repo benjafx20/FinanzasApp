@@ -1,9 +1,10 @@
 import { Amount } from '../ui/Amount';
 import './GoalCard.css';
 
-export function GoalCard({ goal, acumulado, onAportar, onDelete }) {
+export function GoalCard({ goal, acumulado, onAportar, onDelete, onCerrar, onReabrir }) {
   const pct = Math.min((acumulado / goal.monto_objetivo) * 100, 100);
   const completa = acumulado >= goal.monto_objetivo;
+  const cerrada = !!goal.completed_at;
 
   return (
     <div className={`goal-card ${completa ? 'goal-card--completa' : ''}`}>
@@ -11,9 +12,11 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete }) {
         <span className="goal-card__nombre">
           {goal.nombre} {completa && <span aria-hidden="true">✓</span>}
         </span>
-        <button className="goal-card__delete" onClick={() => onDelete(goal.id)} aria-label={`Eliminar meta ${goal.nombre}`}>
-          ✕
-        </button>
+        {!cerrada && (
+          <button className="goal-card__delete" onClick={() => onDelete(goal.id)} aria-label={`Eliminar meta ${goal.nombre}`}>
+            ✕
+          </button>
+        )}
       </div>
 
       <div className="goal-card__ring-wrap">
@@ -39,10 +42,23 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete }) {
         <span className="goal-card__objetivo"> de <Amount value={goal.monto_objetivo} /></span>
       </div>
 
-      {!completa && (
+      {!completa && !cerrada && (
         <button className="goal-card__aportar" onClick={onAportar}>
           + Aportar
         </button>
+      )}
+      {completa && !cerrada && (
+        <button className="goal-card__aportar" onClick={() => onCerrar(goal)}>
+          Ya usé la plata
+        </button>
+      )}
+      {cerrada && (
+        <>
+          <span className="goal-card__objetivo">Cerrada: la plata ya se usó</span>
+          <button className="goal-card__aportar" onClick={() => onReabrir(goal)}>
+            Reabrir
+          </button>
+        </>
       )}
     </div>
   );

@@ -108,6 +108,8 @@ create table if not exists savings_goals (
   nombre text not null,
   monto_objetivo numeric(12,2) not null check (monto_objetivo > 0),
   fecha_objetivo date,
+  -- Meta cerrada: la plata ahorrada ya se usó (los aportes siguen descontados).
+  completed_at timestamptz,
   created_at timestamptz default now()
 );
 
@@ -120,6 +122,8 @@ create table if not exists savings_contributions (
   user_id uuid not null references auth.users(id) on delete cascade,
   monto numeric(12,2) not null check (monto > 0),
   fecha date not null default current_date,
+  -- Categoría de donde salió la plata (se descuenta de su saldo). Null = plata de afuera.
+  source_category_id uuid references categories(id) on delete set null,
   created_at timestamptz default now()
 );
 

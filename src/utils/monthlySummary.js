@@ -89,12 +89,19 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     gastadoParaSaldoPorCategoria[origenSaldo] = (gastadoParaSaldoPorCategoria[origenSaldo] || 0) + Number(e.monto);
   }
 
+  // Lo que se mandó a metas de ahorro hasta el corte, por categoría de origen.
+  const ahorradoPorCategoria = {};
+  for (const c of contributions) {
+    if (!c.source_category_id || !hastaElCorte(c.fecha)) continue;
+    ahorradoPorCategoria[c.source_category_id] = (ahorradoPorCategoria[c.source_category_id] || 0) + Number(c.monto);
+  }
+
   let balanceAlCierre = 0;
   for (const cat of categories) {
     const aportes = aportesPorCategoria[cat.id] || 0;
     const neto = netoTransferenciasPorCategoria[cat.id] || 0;
     const gastado = gastadoParaSaldoPorCategoria[cat.id] || 0;
-    balanceAlCierre += aportes + neto - gastado;
+    balanceAlCierre += aportes + neto - gastado - (ahorradoPorCategoria[cat.id] || 0);
   }
 
   // Deudas/préstamos que seguían activos (sin saldar) al cierre de ESE

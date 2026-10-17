@@ -6,7 +6,7 @@ import { alertar, confirmar } from '../utils/dialogs';
 // Todo lo que la pantalla necesita del presupuesto semanal: el plan activo de
 // cada categoría, cómo va la semana en curso, y el resumen de la semana que
 // cerró el domingo (con su "Entendido").
-export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, stopWeeklyPlan }) {
+export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions = [], stopWeeklyPlan }) {
   const planActivoPorCategoria = useMemo(() => {
     const map = {};
     for (const p of weeklyPlans) if (p.estado === 'activo') map[p.category_id] = p;
@@ -25,18 +25,30 @@ export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fun
     [fundings, transfers]
   );
 
+  // Gastos + lo que se mandó a metas de ahorro desde cada categoría: todo eso
+  // sale de su saldo, así que también resta de lo disponible de la semana.
+  const salidas = useMemo(
+    () => [
+      ...expenses,
+      ...savingsContributions
+        .filter((c) => c.source_category_id)
+        .map((c) => ({ category_id: c.source_category_id, fecha: c.fecha, monto: c.monto })),
+    ],
+    [expenses, savingsContributions]
+  );
+
   const semanaPorCategoria = useMemo(() => {
     const map = {};
     for (const [categoryId, plan] of Object.entries(planActivoPorCategoria)) {
       map[categoryId] = calcularPlan(
         plan,
         weeklyClosures.filter((c) => c.plan_id === plan.id),
-        expenses,
+        salidas,
         aportesParaSemana
       );
     }
     return map;
-  }, [planActivoPorCategoria, weeklyClosures, expenses, aportesParaSemana]);
+  }, [planActivoPorCategoria, weeklyClosures, salidas, aportesParaSemana]);
 
   // Resumen de la semana que cerró el domingo; se oculta con "Entendido" y
   // vuelve a aparecer solo cuando cierra otra semana.

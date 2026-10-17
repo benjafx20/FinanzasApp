@@ -22,6 +22,21 @@ create policy "category_fundings_update_own"
   with check (auth.uid() = user_id);
 
 
+-- PARTE 4: los aportes a metas de ahorro salen del saldo de una categoría, y las
+-- metas se pueden cerrar (la plata ahorrada se da por usada).
+-- Pegar en Supabase > SQL Editor > New query > Run. Es seguro ejecutarlo más de una vez.
+-- Los aportes que ya existen quedan sin categoría de origen (no descuentan nada).
+
+alter table savings_contributions
+  add column if not exists source_category_id uuid references categories(id) on delete set null;
+
+create index if not exists idx_savings_contributions_source on savings_contributions(source_category_id);
+
+-- Meta cerrada: ya usaste la plata ahorrada. Sus aportes siguen descontados de las
+-- categorías (la plata se gastó) y la meta ya no se puede eliminar sin reabrirla.
+alter table savings_goals add column if not exists completed_at timestamptz;
+
+
 -- ============================================================
 -- PARTE 1: presupuesto semanal
 -- Pegar COMPLETO en Supabase > SQL Editor > New query > Run.
@@ -126,6 +141,11 @@ begin
       select coalesce(sum(monto), 0) into v_gasto
         from expenses
         where coalesce(funding_category_id, category_id) = p.category_id and fecha between v_ini and v_fin;
+      -- Lo que se mandó a una meta de ahorro desde esta categoría también sale de su saldo.
+      v_gasto := v_gasto + coalesce((
+        select sum(monto) from savings_contributions
+        where source_category_id = p.category_id and fecha between v_ini and v_fin
+      ), 0);
 
       -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
       -- sin contar los sobrantes que mueve este mismo proceso).
@@ -149,6 +169,7 @@ begin
             + coalesce((select sum(monto) from budget_transfers where to_category_id = p.category_id), 0)
             - coalesce((select sum(monto) from budget_transfers where from_category_id = p.category_id), 0)
             - coalesce((select sum(monto) from expenses where coalesce(funding_category_id, category_id) = p.category_id), 0)
+            - coalesce((select sum(monto) from savings_contributions where source_category_id = p.category_id), 0)
           into v_saldo;
           v_mover := least(v_disp, greatest(v_saldo, 0));
           if v_mover > 0 then

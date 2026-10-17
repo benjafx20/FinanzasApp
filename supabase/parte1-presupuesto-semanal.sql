@@ -102,6 +102,11 @@ begin
       select coalesce(sum(monto), 0) into v_gasto
         from expenses
         where coalesce(funding_category_id, category_id) = p.category_id and fecha between v_ini and v_fin;
+      -- Lo que se mandó a una meta de ahorro desde esta categoría también sale de su saldo.
+      v_gasto := v_gasto + coalesce((
+        select sum(monto) from savings_contributions
+        where source_category_id = p.category_id and fecha between v_ini and v_fin
+      ), 0);
 
       -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
       -- sin contar los sobrantes que mueve este mismo proceso).
@@ -125,6 +130,7 @@ begin
             + coalesce((select sum(monto) from budget_transfers where to_category_id = p.category_id), 0)
             - coalesce((select sum(monto) from budget_transfers where from_category_id = p.category_id), 0)
             - coalesce((select sum(monto) from expenses where coalesce(funding_category_id, category_id) = p.category_id), 0)
+            - coalesce((select sum(monto) from savings_contributions where source_category_id = p.category_id), 0)
           into v_saldo;
           v_mover := least(v_disp, greatest(v_saldo, 0));
           if v_mover > 0 then
