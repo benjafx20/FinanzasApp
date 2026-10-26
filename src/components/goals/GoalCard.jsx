@@ -1,7 +1,8 @@
+import { Pencil } from 'lucide-react';
 import { Amount } from '../ui/Amount';
 import './GoalCard.css';
 
-export function GoalCard({ goal, acumulado, onAportar, onDelete, onCerrar, onReabrir }) {
+export function GoalCard({ goal, acumulado, onAportar, onEdit, onDelete, onCerrar, onReabrir, onVerAportes }) {
   const pct = Math.min((acumulado / goal.monto_objetivo) * 100, 100);
   const completa = acumulado >= goal.monto_objetivo;
   const cerrada = !!goal.completed_at;
@@ -12,11 +13,16 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete, onCerrar, onRea
         <span className="goal-card__nombre">
           {goal.nombre} {completa && <span aria-hidden="true">✓</span>}
         </span>
-        {!cerrada && (
-          <button className="goal-card__delete" onClick={() => onDelete(goal.id)} aria-label={`Eliminar meta ${goal.nombre}`}>
-            ✕
+        <span style={{ display: 'flex', gap: 4 }}>
+          <button className="goal-card__delete" onClick={() => onEdit(goal)} aria-label={`Editar meta ${goal.nombre}`}>
+            <Pencil size={12} />
           </button>
-        )}
+          {!cerrada && (
+            <button className="goal-card__delete" onClick={() => onDelete(goal.id)} aria-label={`Eliminar meta ${goal.nombre}`}>
+              ✕
+            </button>
+          )}
+        </span>
       </div>
 
       <div className="goal-card__ring-wrap">
@@ -42,6 +48,9 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete, onCerrar, onRea
         <span className="goal-card__objetivo"> de <Amount value={goal.monto_objetivo} /></span>
       </div>
 
+      <button className="goal-card__aportar" onClick={() => onVerAportes(goal)}>
+        Ver aportes
+      </button>
       {!completa && !cerrada && (
         <button className="goal-card__aportar" onClick={onAportar}>
           + Aportar
@@ -54,7 +63,11 @@ export function GoalCard({ goal, acumulado, onAportar, onDelete, onCerrar, onRea
       )}
       {cerrada && (
         <>
-          <span className="goal-card__objetivo">Cerrada: la plata ya se usó</span>
+          <span className="goal-card__objetivo">
+            {goal.used_for
+              ? `Gastada en: ${goal.used_for}${goal.used_at ? ` · ${goal.used_at.split('-').reverse().join('-')}` : ''}`
+              : 'Cerrada: la plata ya se usó'}
+          </span>
           <button className="goal-card__aportar" onClick={() => onReabrir(goal)}>
             Reabrir
           </button>

@@ -1,11 +1,11 @@
-import { Search, Eye, EyeOff } from 'lucide-react';
+import { Search, Eye, EyeOff, Settings } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { PaletteSwitcher } from './PaletteSwitcher';
 import { Amount } from '../ui/Amount';
 import { usePrivacy } from '../../context/PrivacyContext';
 import './Header.css';
 
-export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp, onShowSearch }) {
+export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp, onShowSearch, onShowSettings }) {
   const balancePositivo = balance >= 0;
   const { hidden, toggleHidden } = usePrivacy();
 
@@ -23,6 +23,9 @@ export function Header({ totalMes, totalSemana, balance, onSignOut, onShowHelp, 
           </button>
           <button className="app-header__help" onClick={onShowSearch} aria-label="Buscar">
             <Search size={13} />
+          </button>
+          <button className="app-header__help" onClick={onShowSettings} aria-label="Ajustes y respaldo">
+            <Settings size={13} />
           </button>
           <PaletteSwitcher />
           <ThemeToggle />

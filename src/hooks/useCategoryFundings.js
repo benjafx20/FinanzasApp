@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchAllPages } from '../lib/fetchAll';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useCategoryFundings(userId) {
@@ -14,7 +15,9 @@ export function useCategoryFundings(userId) {
     if (!cargadoRef.current) setLoading(true);
     setError(null);
     const { data, error: fetchError } = await withSessionRetry(() =>
-      supabase.from('category_fundings').select('*').order('created_at', { ascending: false })
+      fetchAllPages(() =>
+        supabase.from('category_fundings').select('*').order('created_at', { ascending: false }).order('id')
+      )
     );
 
     if (fetchError) {
@@ -86,6 +89,14 @@ export function useCategoryFundings(userId) {
     return data;
   }, [userId]);
 
+  // Quita de una vez todos los aportes de un ingreso (una sola operación, así no
+  // quedan a medias si se corta la conexión).
+  const deleteFundingsByIncome = useCallback(async (incomeId) => {
+    const { error: deleteError } = await supabase.from('category_fundings').delete().eq('income_id', incomeId);
+    if (deleteError) throw new Error('No se pudieron quitar los aportes del ingreso.');
+    setFundings((prev) => prev.filter((f) => f.income_id !== incomeId));
+  }, []);
+
   const deleteFunding = useCallback(async (id) => {
     const { error: deleteError } = await supabase.from('category_fundings').delete().eq('id', id);
     if (deleteError) throw new Error('No se pudo eliminar el aporte.');
@@ -130,5 +141,5 @@ export function useCategoryFundings(userId) {
     return map;
   }, [fundings]);
 
-  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFunding, deleteFunding, totalPorCategoria, refetch: fetchFundings };
+  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFunding, deleteFunding, deleteFundingsByIncome, totalPorCategoria, refetch: fetchFundings };
 }

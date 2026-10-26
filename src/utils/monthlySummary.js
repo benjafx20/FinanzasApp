@@ -5,6 +5,7 @@
 // historial completo de aportes/traspasos/gastos).
 
 import { fechaLocalISO } from './dates';
+import { movimientosDeDeudas } from './debtMovements';
 
 function ultimoDiaDelMes(monthKey) {
   const [y, m] = monthKey.split('-').map(Number);
@@ -32,7 +33,9 @@ export function getClosedMonths({ expenses = [], fundings = [], transfers = [], 
   return Array.from(keys).sort().reverse();
 }
 
-export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], transfers = [], contributions = [], debts = [], categories = [] }) {
+export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], transfers = [], contributions = [], goals = [], debts = [], categories = [] }) {
+  // Lo que las deudas movieron de cada categoría (con categoría elegida).
+  const movimientosDeuda = movimientosDeDeudas(debts);
   const enEsteMes = (fecha) => fecha.slice(0, 7) === monthKey;
   const corte = ultimoDiaDelMes(monthKey);
   const hastaElCorte = (fecha) => fecha <= corte;
@@ -66,6 +69,51 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     .filter((c) => enEsteMes(c.fecha))
     .reduce((sum, c) => sum + Number(c.monto), 0);
 
+  // Compras hechas con metas de ahorro cerradas ese mes. Van aparte: NO suman a
+  // "gastado", porque esa plata ya salió del saldo cuando se aportó a la meta.
+  const comprasDelMes = (key) =>
+    goals
+      .filter((g) => g.completed_at)
+      .map((g) => ({
+        nombre: g.used_for || g.nombre,
+        fecha: g.used_at || fechaLocalISO(new Date(g.completed_at)),
+        monto: contributions.filter((c) => c.goal_id === g.id).reduce((sum, c) => sum + Number(c.monto), 0),
+      }))
+      .filter((c) => c.fecha.slice(0, 7) === key && c.monto > 0);
+  const comprasConAhorro = comprasDelMes(monthKey);
+  const totalComprasConAhorro = comprasConAhorro.reduce((sum, c) => sum + c.monto, 0);
+  const totalComprasAnterior = comprasDelMes(mesAnteriorKey).reduce((sum, c) => sum + c.monto, 0);
+
+  // Comparación con el mes anterior (el resumen solo existe al cerrar el mes, así que
+  // ambos meses están completos). Las compras con ahorro cuentan como gasto.
+  const gastoCategoriaAnterior = {};
+  for (const e of expenses) {
+    if (!e.category_id || e.fecha.slice(0, 7) !== mesAnteriorKey) continue;
+    gastoCategoriaAnterior[e.category_id] = (gastoCategoriaAnterior[e.category_id] || 0) + Number(e.monto);
+  }
+  const porCategoria = categories
+    .map((cat) => {
+      const actual = gastoPorCategoria[cat.id] || 0;
+      const anterior = gastoCategoriaAnterior[cat.id] || 0;
+      return { categoria: cat, actual, anterior, delta: actual - anterior };
+    })
+    .filter((r) => r.actual > 0 || r.anterior > 0)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const totalConCompras = totalGastado + totalComprasConAhorro;
+  const totalAnteriorConCompras = totalMesAnterior + totalComprasAnterior;
+  const comparacion = {
+    hayMesAnterior: totalAnteriorConCompras > 0,
+    mesAnteriorKey,
+    totalActual: totalConCompras,
+    totalAnterior: totalAnteriorConCompras,
+    cambioPct: totalAnteriorConCompras > 0
+      ? Math.round(((totalConCompras - totalAnteriorConCompras) / totalAnteriorConCompras) * 100)
+      : null,
+    comprasActual: totalComprasConAhorro,
+    comprasAnterior: totalComprasAnterior,
+    porCategoria,
+  };
+
   // Reconstruye el saldo real como estaba al cierre de ese mes, con la
   // misma fórmula que usa el Dashboard para el balance de HOY, pero
   // considerando solo los movimientos hasta esa fecha.
@@ -96,12 +144,18 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     ahorradoPorCategoria[c.source_category_id] = (ahorradoPorCategoria[c.source_category_id] || 0) + Number(c.monto);
   }
 
+  const deudaPorCategoria = {};
+  for (const m of movimientosDeuda) {
+    if (!m.fecha || !hastaElCorte(m.fecha)) continue;
+    deudaPorCategoria[m.category_id] = (deudaPorCategoria[m.category_id] || 0) + m.monto;
+  }
+
   let balanceAlCierre = 0;
   for (const cat of categories) {
     const aportes = aportesPorCategoria[cat.id] || 0;
     const neto = netoTransferenciasPorCategoria[cat.id] || 0;
     const gastado = gastadoParaSaldoPorCategoria[cat.id] || 0;
-    balanceAlCierre += aportes + neto - gastado - (ahorradoPorCategoria[cat.id] || 0);
+    balanceAlCierre += aportes + neto - gastado - (ahorradoPorCategoria[cat.id] || 0) + (deudaPorCategoria[cat.id] || 0);
   }
 
   // Deudas/préstamos que seguían activos (sin saldar) al cierre de ESE
@@ -126,6 +180,9 @@ export function buildMonthlySummary({ monthKey, expenses = [], fundings = [], tr
     categoriaTop,
     categoriaTopMonto,
     ahorroLogrado,
+    comprasConAhorro,
+    totalComprasConAhorro,
+    comparacion,
     balanceAlCierre,
     totalTeDebenAlCierre,
     totalDebesAlCierre,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { confirmar } from '../../utils/dialogs';
+import { evaluarBorradoCategoria } from '../../utils/categoryDeletion';
+import { alertar, confirmar } from '../../utils/dialogs';
 import { ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Pencil, Plus } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Modal } from '../ui/Modal';
@@ -21,10 +22,12 @@ export function ManageCategoriesModal({ categories, onMove, onToggleHidden, onCh
     setBusyId(cat.id);
     try {
       const usage = await onCheckUsage(cat.id);
-      const total = usage.gastos + usage.recurrentes;
-      const mensaje = total > 0
-        ? `"${cat.nombre}" tiene ${usage.gastos} gasto(s) y ${usage.recurrentes} gasto(s) recurrente(s) asociados.\n\nNo se borrará ningún gasto, pero perderán la categoría asignada (quedarán marcados como "Sin categoría").\n\n¿Quieres continuar?`
-        : `¿Eliminar la categoría "${cat.nombre}"?`;
+      const { bloquear, mensaje } = evaluarBorradoCategoria(cat, usage);
+      if (bloquear) {
+        await alertar(mensaje, 'No se puede eliminar');
+        setBusyId(null);
+        return;
+      }
       if (!(await confirmar(mensaje))) {
         setBusyId(null);
         return;

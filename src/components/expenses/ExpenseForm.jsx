@@ -15,7 +15,7 @@ import './ExpenseForm.css';
 // `saldosPorCategoria`: mapa category_id -> saldo real, para validar y
 // mostrar cuánto hay disponible al elegir "pagar con otra categoría".
 // Si se pasa `expense`, el formulario edita ese gasto; si no, crea uno nuevo.
-export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, saldosPorCategoria, onSubmit, onDone, categoryManagement }) {
+export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, saldosPorCategoria, lookupHabit, onSubmit, onDone, categoryManagement }) {
   const isEditing = !!expense;
   const [categoryId, setCategoryId] = useState(expense?.category_id ?? defaultCategoryId ?? categories[0]?.id ?? '');
   const [monto, setMonto] = useState(expense?.monto ?? '');
@@ -28,6 +28,9 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState('');
+  // Si la categoría salió de un hábito aprendido (y no de una elección del usuario).
+  const [categoriaTocada, setCategoriaTocada] = useState(isEditing || !!defaultCategoryId);
+  const [habitHint, setHabitHint] = useState('');
   // Resultado del último escaneo, pendiente de que el usuario lo confirme o lo edite.
   const [scanResult, setScanResult] = useState(null);
   // Foto de la boleta escaneada: se guarda como comprobante junto con el gasto.
@@ -49,7 +52,12 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
     setReceiptBlob(null);
     setError('');
     try {
-      const leido = await scanReceipt(file, categories);
+      let leido = await scanReceipt(file, categories);
+      // Tu hábito gana sobre la sugerencia de la IA: si ya usaste este comercio, se respeta.
+      const aprendida = lookupHabit?.(leido.comercio);
+      if (aprendida && categories.some((c) => c.id === aprendida)) {
+        leido = { ...leido, categoryId: aprendida, aprendida: true };
+      }
       setScanResult(leido);
     } catch (err) {
       setScanNotice(err.message);
@@ -123,6 +131,17 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
     }
   };
 
+  // Al terminar de escribir la nota, si es un comercio que ya conoces y no elegiste
+  // categoría a mano, la categoría se completa sola.
+  const aplicarHabito = () => {
+    if (categoriaTocada || !lookupHabit) return;
+    const aprendida = lookupHabit(nota);
+    if (aprendida && aprendida !== categoryId && categories.some((c) => c.id === aprendida)) {
+      setCategoryId(aprendida);
+      setHabitHint(`Categoría elegida porque ya usaste "${nota.trim()}" antes. Puedes cambiarla.`);
+    }
+  };
+
   const otrasCategorias = categories.filter((c) => c.id !== categoryId);
 
   // Grupos ya usados en esta misma categoría (ej: "Samsung A06"), para que al
@@ -185,7 +204,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
                 <div><dt>Comercio</dt><dd>{scanResult.comercio || 'No se leyó'}</dd></div>
                 <div><dt>Monto</dt><dd>{scanResult.monto ? formatCurrency(scanResult.monto) : 'No se leyó'}</dd></div>
                 <div><dt>Fecha</dt><dd>{fechaLegible(scanResult.fecha) || 'No se leyó'}</dd></div>
-                <div><dt>Categoría</dt><dd>{nombreCategoriaLeida || 'Sin sugerencia'}</dd></div>
+                <div><dt>Categoría</dt><dd>{nombreCategoriaLeida || 'Sin sugerencia'}{scanResult.aprendida && nombreCategoriaLeida ? ' (la usaste antes)' : ''}</dd></div>
               </dl>
               <div className="expense-form__scan-result-actions">
                 {escaneoCompleto && (
@@ -205,7 +224,11 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
       <CategoryPicker
         categories={categories}
         categoryId={categoryId}
-        onChange={setCategoryId}
+        onChange={(id) => {
+          setCategoriaTocada(true);
+          setHabitHint('');
+          setCategoryId(id);
+        }}
         allCategories={categoryManagement.allCategories}
         onAddCategory={categoryManagement.addCategory}
         onUpdateCategory={categoryManagement.updateCategory}
@@ -239,9 +262,11 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
         type="text"
         value={nota}
         onChange={(e) => setNota(e.target.value)}
+        onBlur={aplicarHabito}
         placeholder="Ej: almuerzo con equipo"
         maxLength={100}
       />
+      {habitHint && <p className="dashboard__empty">{habitHint}</p>}
 
       <Input
         id="etiqueta"

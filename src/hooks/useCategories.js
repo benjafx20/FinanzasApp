@@ -38,6 +38,7 @@ export function useCategories(userId) {
         ...cat,
         orden: prefsByCategory[cat.id]?.orden ?? null,
         oculta: prefsByCategory[cat.id]?.oculta ?? false,
+        es_inventario: prefsByCategory[cat.id]?.es_inventario ?? false,
       }))
       .sort((a, b) => {
         if (a.orden != null && b.orden != null) return a.orden - b.orden;
@@ -86,6 +87,15 @@ export function useCategories(userId) {
     setAllCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, oculta } : c)));
   }, [userId]);
 
+  // Marca una categoría como inventario de equipos (comprados y sin vender).
+  const setInventario = useCallback(async (categoryId, esInventario) => {
+    const { error: upsertError } = await supabase
+      .from('category_preferences')
+      .upsert({ user_id: userId, category_id: categoryId, es_inventario: esInventario }, { onConflict: 'user_id,category_id' });
+    if (upsertError) throw new Error('No se pudo actualizar la categoría.');
+    setAllCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, es_inventario: esInventario } : c)));
+  }, [userId]);
+
   // Reordena moviendo una categoría una posición arriba (-1) o abajo (+1)
   // dentro de la lista completa (incluye ocultas), reasignando el campo
   // `orden` de todas según su nueva posición.
@@ -110,11 +120,28 @@ export function useCategories(userId) {
   // recurrentes o presupuestos) para poder avisarle al usuario. El borrado
   // en sí nunca elimina gastos: la base de datos los deja "sin categoría".
   const checkCategoryUsage = useCallback(async (categoryId) => {
-    const [expRes, recRes] = await Promise.all([
-      supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('category_id', categoryId),
-      supabase.from('recurring_expenses').select('id', { count: 'exact', head: true }).eq('category_id', categoryId),
+    const contar = (tabla, filtro) => {
+      const q = supabase.from(tabla).select('id', { count: 'exact', head: true });
+      return filtro(q);
+    };
+    const [exp, rec, apo, tra, pla, aho, deu] = await Promise.all([
+      contar('expenses', (q) => q.eq('category_id', categoryId)),
+      contar('recurring_expenses', (q) => q.eq('category_id', categoryId)),
+      contar('category_fundings', (q) => q.eq('category_id', categoryId)),
+      contar('budget_transfers', (q) => q.or(`from_category_id.eq.${categoryId},to_category_id.eq.${categoryId}`)),
+      contar('weekly_plans', (q) => q.eq('category_id', categoryId)),
+      contar('savings_contributions', (q) => q.eq('source_category_id', categoryId)),
+      contar('debts', (q) => q.or(`source_category_id.eq.${categoryId},destination_category_id.eq.${categoryId}`)),
     ]);
-    return { gastos: expRes.count ?? 0, recurrentes: recRes.count ?? 0 };
+    return {
+      gastos: exp.count ?? 0,
+      recurrentes: rec.count ?? 0,
+      aportes: apo.count ?? 0,
+      traspasos: tra.count ?? 0,
+      planes: pla.count ?? 0,
+      ahorros: aho.count ?? 0,
+      deudas: deu.count ?? 0,
+    };
   }, []);
 
   const updateCategory = useCallback(async (categoryId, { nombre, icono, color }) => {
@@ -150,6 +177,7 @@ export function useCategories(userId) {
     error,
     addCategory,
     updateCategory,
+    setInventario,
     setHidden,
     moveCategory,
     checkCategoryUsage,

@@ -7,11 +7,13 @@ import { formatCurrency } from '../../utils/formatCurrency';
 // Activa el presupuesto semanal de una categoría: la plata sigue en la
 // categoría (el saldo real no cambia), pero se muestra lo que te toca gastar
 // cada semana. `otrasCategorias`: posibles destinos del sobrante.
-export function WeeklyPlanForm({ category, saldo, otrasCategorias, onSubmit, onDone }) {
-  const [monto, setMonto] = useState('');
-  const [semanas, setSemanas] = useState('4');
+// Con `plan` edita uno activo: cambia monto, semanas y destino del sobrante. Las
+// semanas ya cerradas no cambian (`minSemanas` = las que ya se cerraron).
+export function WeeklyPlanForm({ category, saldo, otrasCategorias, plan, minSemanas = 1, onSubmit, onDone }) {
+  const [monto, setMonto] = useState(plan ? String(plan.monto_semanal) : '');
+  const [semanas, setSemanas] = useState(plan ? String(plan.semanas) : '4');
   const [modo, setModo] = useState('esta');
-  const [sobranteId, setSobranteId] = useState('');
+  const [sobranteId, setSobranteId] = useState(plan?.sobrante_category_id || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,13 +26,11 @@ export function WeeklyPlanForm({ category, saldo, otrasCategorias, onSubmit, onD
     setError('');
     setLoading(true);
     try {
-      await onSubmit({
-        categoryId: category.id,
-        monto: montoNum,
-        semanas: semanasNum,
-        modo,
-        sobranteCategoryId: sobranteId || null,
-      });
+      await onSubmit(
+        plan
+          ? { monto: montoNum, semanas: semanasNum, sobranteCategoryId: sobranteId || null }
+          : { categoryId: category.id, monto: montoNum, semanas: semanasNum, modo, sobranteCategoryId: sobranteId || null }
+      );
       onDone();
     } catch (err) {
       setError(err.message);
@@ -53,7 +53,7 @@ export function WeeklyPlanForm({ category, saldo, otrasCategorias, onSubmit, onD
         id="plan-semanas"
         label="Durante cuántas semanas"
         type="number"
-        min="1"
+        min={minSemanas}
         max="52"
         step="1"
         value={semanas}
@@ -61,13 +61,15 @@ export function WeeklyPlanForm({ category, saldo, otrasCategorias, onSubmit, onD
         required
       />
 
-      <div className="input-group">
-        <label className="input-label" htmlFor="plan-modo">¿Cuándo parte?</label>
-        <select id="plan-modo" className="input" value={modo} onChange={(e) => setModo(e.target.value)}>
-          <option value="esta">Esta semana (desde hoy)</option>
-          <option value="lunes">El lunes (semana completa)</option>
-        </select>
-      </div>
+      {!plan && (
+        <div className="input-group">
+          <label className="input-label" htmlFor="plan-modo">¿Cuándo parte?</label>
+          <select id="plan-modo" className="input" value={modo} onChange={(e) => setModo(e.target.value)}>
+            <option value="esta">Esta semana (desde hoy)</option>
+            <option value="lunes">El lunes (semana completa)</option>
+          </select>
+        </div>
+      )}
 
       <div className="input-group">
         <label className="input-label" htmlFor="plan-sobrante">Si sobra plata de la semana, mandarla a</label>
@@ -92,7 +94,7 @@ export function WeeklyPlanForm({ category, saldo, otrasCategorias, onSubmit, onD
 
       {error && <p className="auth-error" role="alert">{error}</p>}
       <Button type="submit" fullWidth disabled={loading}>
-        {loading ? 'Activando…' : 'Activar presupuesto semanal'}
+        {loading ? (plan ? 'Guardando…' : 'Activando…') : plan ? 'Guardar cambios' : 'Activar presupuesto semanal'}
       </Button>
     </form>
   );

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { MonthlyComparison } from './MonthlyComparison';
 import { ChevronLeft, Share2, Loader2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { CategoryIcon } from '../../utils/CategoryIcon';
@@ -21,6 +22,7 @@ export function MonthlySummaryModal({
   fundings,
   transfers,
   contributions,
+  goals,
   debts,
   categories,
 }) {
@@ -30,8 +32,8 @@ export function MonthlySummaryModal({
 
   const stats = useMemo(() => {
     if (!monthKey) return null;
-    return buildMonthlySummary({ monthKey, expenses, fundings, transfers, contributions, debts, categories });
-  }, [monthKey, expenses, fundings, transfers, contributions, debts, categories]);
+    return buildMonthlySummary({ monthKey, expenses, fundings, transfers, contributions, goals, debts, categories });
+  }, [monthKey, expenses, fundings, transfers, contributions, goals, debts, categories]);
 
   const frases = useMemo(
     () => (stats ? generarResumenConversado(stats) : []),
@@ -102,6 +104,12 @@ export function MonthlySummaryModal({
                 <strong><Amount value={stats.ahorroLogrado} /></strong>
               </div>
             )}
+            {stats.totalComprasConAhorro > 0 && (
+              <div className="monthly-summary__chip">
+                <span>Compras con ahorro</span>
+                <strong><Amount value={stats.totalComprasConAhorro} /></strong>
+              </div>
+            )}
             {stats.totalTeDebenAlCierre > 0 && (
               <div className="monthly-summary__chip">
                 <span>Te debían</span>
@@ -121,6 +129,8 @@ export function MonthlySummaryModal({
               </strong>
             </div>
           </div>
+
+          <MonthlyComparison comparacion={stats.comparacion} anteriorLabel={monthLabel(stats.comparacion.mesAnteriorKey)} />
 
           {stats.categoriaTop && (
             <div className="monthly-summary__top-categoria">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchAllPages } from '../lib/fetchAll';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useIncomes(userId) {
@@ -17,11 +18,14 @@ export function useIncomes(userId) {
       // Mismo desempate que en useExpenses: `fecha` no tiene hora, así que se
       // ordena también por `created_at` para que el orden dentro de un mismo
       // día sea estable y no dependa de detalles como si tiene nota o no.
-      supabase
-        .from('incomes')
-        .select('*')
-        .order('fecha', { ascending: false })
-        .order('created_at', { ascending: false })
+      fetchAllPages(() =>
+        supabase
+          .from('incomes')
+          .select('*')
+          .order('fecha', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id')
+      )
     );
 
     if (fetchError) {

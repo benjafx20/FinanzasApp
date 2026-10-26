@@ -89,6 +89,32 @@ export function useWeeklyPlans(userId) {
     [userId, plans, closures]
   );
 
+  // Cambia monto semanal, cantidad de semanas y destino del sobrante. Las semanas
+  // ya cerradas no cambian; el nuevo monto rige desde la semana en curso. Mantiene
+  // la fecha de inicio y la deuda arrastrada.
+  const updatePlan = useCallback(
+    async (planId, { monto, semanas, sobranteCategoryId }) => {
+      if (!monto || monto <= 0) throw new Error('El monto semanal debe ser mayor a 0.');
+      if (!Number.isInteger(semanas) || semanas < 1 || semanas > 52) {
+        throw new Error('Las semanas deben ser un número entre 1 y 52.');
+      }
+      const cerradas = Math.max(0, ...closures.filter((c) => c.plan_id === planId).map((c) => c.semana_num));
+      if (semanas < cerradas) {
+        throw new Error(`Ya se cerraron ${cerradas} semanas, así que no puede durar menos que eso.`);
+      }
+      const { data, error: updateError } = await supabase
+        .from('weekly_plans')
+        .update({ monto_semanal: monto, semanas, sobrante_category_id: sobranteCategoryId || null })
+        .eq('id', planId)
+        .select()
+        .single();
+      if (updateError) throw new Error('No se pudo editar el presupuesto semanal.');
+      setPlans((prev) => prev.map((p) => (p.id === planId ? data : p)));
+      return data;
+    },
+    [closures]
+  );
+
   const stopPlan = useCallback(async (planId) => {
     const { data, error: updateError } = await supabase
       .from('weekly_plans')
@@ -100,5 +126,5 @@ export function useWeeklyPlans(userId) {
     setPlans((prev) => prev.map((p) => (p.id === planId ? data : p)));
   }, []);
 
-  return { plans, closures, loading, error, createPlan, stopPlan, refetch: fetchAll };
+  return { plans, closures, loading, error, createPlan, updatePlan, stopPlan, refetch: fetchAll };
 }

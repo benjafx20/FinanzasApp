@@ -54,6 +54,22 @@ export function useRecurringExpenses(userId) {
     return data;
   }, [userId]);
 
+  const updateRecurring = useCallback(async (id, { categoryId, nombre, monto, diaMes }) => {
+    if (!nombre.trim()) throw new Error('Ponle un nombre al gasto recurrente.');
+    if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
+    if (!diaMes || diaMes < 1 || diaMes > 31) throw new Error('El día debe estar entre 1 y 31.');
+
+    const { data, error: updateError } = await supabase
+      .from('recurring_expenses')
+      .update({ category_id: categoryId, nombre: nombre.trim(), monto, dia_mes: diaMes })
+      .eq('id', id)
+      .select('*, categories(id, nombre, icono, color)')
+      .single();
+    if (updateError) throw new Error('No se pudo editar el gasto recurrente.');
+    setRecurring((prev) => prev.map((r) => (r.id === id ? data : r)).sort((a, b) => a.dia_mes - b.dia_mes));
+    return data;
+  }, []);
+
   const toggleActivo = useCallback(async (id, activo) => {
     const { data, error: updateError } = await supabase
       .from('recurring_expenses')
@@ -72,5 +88,5 @@ export function useRecurringExpenses(userId) {
     setRecurring((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
-  return { recurring, loading, error, addRecurring, toggleActivo, deleteRecurring, refetch: fetchRecurring };
+  return { recurring, loading, error, addRecurring, updateRecurring, toggleActivo, deleteRecurring, refetch: fetchRecurring };
 }

@@ -4,11 +4,12 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { CategoryPicker } from '../categories/CategoryPicker';
 
-export function RecurringExpenseForm({ categories, onSubmit, onDone, categoryManagement }) {
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
-  const [nombre, setNombre] = useState('');
-  const [monto, setMonto] = useState('');
-  const [diaMes, setDiaMes] = useState('1');
+// Con `recurring` edita un gasto recurrente existente (rige desde el próximo cobro).
+export function RecurringExpenseForm({ recurring, categories, onSubmit, onDone, categoryManagement }) {
+  const [categoryId, setCategoryId] = useState(recurring?.category_id ?? categories[0]?.id ?? '');
+  const [nombre, setNombre] = useState(recurring?.nombre ?? '');
+  const [monto, setMonto] = useState(recurring ? String(recurring.monto) : '');
+  const [diaMes, setDiaMes] = useState(recurring ? String(recurring.dia_mes) : '1');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +69,7 @@ export function RecurringExpenseForm({ categories, onSubmit, onDone, categoryMan
 
       {error && <p className="auth-error" role="alert">{error}</p>}
       <Button type="submit" fullWidth disabled={loading}>
-        {loading ? 'Creando…' : 'Crear gasto recurrente'}
+        {loading ? 'Guardando…' : recurring ? 'Guardar cambios' : 'Crear gasto recurrente'}
       </Button>
     </form>
   );

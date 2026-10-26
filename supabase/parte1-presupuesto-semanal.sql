@@ -107,6 +107,13 @@ begin
         select sum(monto) from savings_contributions
         where source_category_id = p.category_id and fecha between v_ini and v_fin
       ), 0);
+      -- Deudas: lo prestado (o lo pagado de una deuda) desde esta categoría sale de su saldo.
+      v_gasto := v_gasto + coalesce((
+        select sum(monto) from debts
+        where source_category_id = p.category_id
+          and ((tipo = 'prestado' and fecha between v_ini and v_fin)
+            or (tipo = 'debo' and pagado and fecha_pago between v_ini and v_fin))
+      ), 0);
 
       -- Plata que entró a la categoría esa semana (aportes y traspasos recibidos,
       -- sin contar los sobrantes que mueve este mismo proceso).
@@ -117,6 +124,13 @@ begin
         select sum(monto) from budget_transfers
         where to_category_id = p.category_id and fecha between v_ini and v_fin
           and coalesce(nota, '') not like 'Sobrante semana%'
+      ), 0);
+
+      -- Deudas: lo que te devolvieron en esta categoría entra a su saldo.
+      v_aportes := v_aportes + coalesce((
+        select sum(monto) from debts
+        where destination_category_id = p.category_id and tipo = 'prestado' and pagado
+          and fecha_pago between v_ini and v_fin
       ), 0);
 
       v_disp := p.monto_semanal + v_aportes - v_deuda - v_gasto;
@@ -131,6 +145,8 @@ begin
             - coalesce((select sum(monto) from budget_transfers where from_category_id = p.category_id), 0)
             - coalesce((select sum(monto) from expenses where coalesce(funding_category_id, category_id) = p.category_id), 0)
             - coalesce((select sum(monto) from savings_contributions where source_category_id = p.category_id), 0)
+            - coalesce((select sum(monto) from debts where source_category_id = p.category_id and (tipo = 'prestado' or pagado)), 0)
+            + coalesce((select sum(monto) from debts where destination_category_id = p.category_id and tipo = 'prestado' and pagado), 0)
           into v_saldo;
           v_mover := least(v_disp, greatest(v_saldo, 0));
           if v_mover > 0 then

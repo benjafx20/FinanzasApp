@@ -22,6 +22,10 @@ export function CategoryDetailModal({
   semana,
   nombreCategoriaSobrante,
   onActivarPresupuesto,
+  esInventario,
+  equipos = [],
+  onToggleInventario,
+  onEditarPresupuesto,
   onApagarPresupuesto,
   expensesDeCategoria,
   onAddExpense,
@@ -146,6 +150,37 @@ export function CategoryDetailModal({
       </div>
 
       <div className="category-detail__grupos">
+        <span className="category-detail__expenses-title">Inventario de equipos</span>
+        {esInventario ? (
+          <>
+            {equipos.length === 0 ? (
+              <p className="dashboard__empty">No tienes equipos sin vender.</p>
+            ) : (
+              <>
+                <div className="category-detail__stats">
+                  <span>Sin vender: <strong>{equipos.length}</strong></span>
+                  <span>Plata parada: <strong><Amount value={equipos.reduce((s, e) => s + e.costo, 0)} /></strong></span>
+                </div>
+                {equipos.map((e) => (
+                  <p key={e.nombre} className="dashboard__empty">
+                    <strong>{e.nombre}</strong>: <Amount value={e.costo} /> · {e.dias === 1 ? '1 día' : `${e.dias} días`}
+                    {e.atrasado ? ' ⚠' : ''}
+                  </p>
+                ))}
+              </>
+            )}
+            <button type="button" className="category-detail__show-more" onClick={() => onToggleInventario(false)}>
+              Quitar de inventario
+            </button>
+          </>
+        ) : (
+          <button type="button" className="category-detail__show-more" onClick={() => onToggleInventario(true)}>
+            Usar como inventario (equipos comprados y sin vender)
+          </button>
+        )}
+      </div>
+
+      <div className="category-detail__grupos">
         <span className="category-detail__expenses-title">Presupuesto semanal</span>
         {plan && semana?.estado === 'activo' ? (
           <>
@@ -169,6 +204,9 @@ export function CategoryDetailModal({
                 ? `El sobrante de cada semana se mueve a ${nombreCategoriaSobrante}.`
                 : 'El sobrante de cada semana se queda en esta categoría.'}
             </p>
+            <button type="button" className="category-detail__show-more" onClick={() => onEditarPresupuesto(plan)}>
+              Editar presupuesto semanal
+            </button>
             <button type="button" className="category-detail__show-more" onClick={() => onApagarPresupuesto(plan)}>
               Apagar presupuesto semanal
             </button>

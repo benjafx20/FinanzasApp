@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchAllPages } from '../lib/fetchAll';
 import { supabase } from '../lib/supabaseClient';
 
 // Las transferencias ya no están amarradas a un período: el saldo de una
@@ -16,12 +17,15 @@ export function useBudgetTransfers(userId) {
     if (!userId) return;
     if (!cargadoRef.current) setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('budget_transfers')
-      .select(
-        '*, origen:from_category_id(id, nombre, icono, color), destino:to_category_id(id, nombre, icono, color)'
-      )
-      .order('created_at', { ascending: false });
+    const { data, error: fetchError } = await fetchAllPages(() =>
+      supabase
+        .from('budget_transfers')
+        .select(
+          '*, origen:from_category_id(id, nombre, icono, color), destino:to_category_id(id, nombre, icono, color)'
+        )
+        .order('created_at', { ascending: false })
+        .order('id')
+    );
 
     if (fetchError) {
       setError('No se pudieron cargar los movimientos entre categorías.');
@@ -63,6 +67,23 @@ export function useBudgetTransfers(userId) {
     return data;
   }, [userId]);
 
+  // Corrige monto, fecha y nota de un movimiento (el origen y destino no cambian).
+  const updateTransfer = useCallback(async (id, { monto, nota, fecha }) => {
+    if (!monto || Number(monto) <= 0) throw new Error('El monto debe ser mayor a 0.');
+    if (!fecha) throw new Error('Falta la fecha.');
+    const { data, error: updateError } = await supabase
+      .from('budget_transfers')
+      .update({ monto, nota: nota?.trim() || null, fecha })
+      .eq('id', id)
+      .select(
+        '*, origen:from_category_id(id, nombre, icono, color), destino:to_category_id(id, nombre, icono, color)'
+      )
+      .single();
+    if (updateError) throw new Error('No se pudo editar el movimiento.');
+    setTransfers((prev) => prev.map((t) => (t.id === id ? data : t)));
+    return data;
+  }, []);
+
   const deleteTransfer = useCallback(async (id) => {
     const { error: deleteError } = await supabase.from('budget_transfers').delete().eq('id', id);
     if (deleteError) throw new Error('No se pudo deshacer el movimiento.');
@@ -80,5 +101,5 @@ export function useBudgetTransfers(userId) {
     return map;
   }, [transfers]);
 
-  return { transfers, loading, error, addTransfer, deleteTransfer, netoPorCategoria, refetch: fetchTransfers };
+  return { transfers, loading, error, addTransfer, updateTransfer, deleteTransfer, netoPorCategoria, refetch: fetchTransfers };
 }

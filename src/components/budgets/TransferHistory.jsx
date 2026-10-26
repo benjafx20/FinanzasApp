@@ -1,9 +1,9 @@
-import { ArrowRight, Undo2 } from 'lucide-react';
+import { ArrowRight, Undo2, Pencil } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Amount } from '../ui/Amount';
 import './TransferHistory.css';
 
-export function TransferHistory({ transfers, onUndo }) {
+export function TransferHistory({ transfers, onUndo, onEdit }) {
   if (transfers.length === 0) return null;
 
   return (
@@ -20,6 +20,16 @@ export function TransferHistory({ transfers, onUndo }) {
             {t.destino?.nombre ?? 'Categoría eliminada'}
           </span>
           <span className="transfer-history__monto"><Amount value={t.monto} /></span>
+          {onEdit && t.from_category_id && t.to_category_id && (
+            <button
+              type="button"
+              className="transfer-history__undo"
+              onClick={() => onEdit(t)}
+              aria-label="Editar movimiento"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
           <button
             type="button"
             className="transfer-history__undo"

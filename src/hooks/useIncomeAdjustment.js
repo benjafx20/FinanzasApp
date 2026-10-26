@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { calcularAjusteReparto } from '../utils/incomeAdjust';
 import { alertar } from '../utils/dialogs';
 
 // Editar un ingreso: si cambia el monto y el ingreso ya estaba repartido en
@@ -26,31 +27,13 @@ export function useIncomeAdjustment({
       await updateIncome(ingreso.id, values);
       return;
     }
-    const ratio = montoNuevo / montoViejo;
-    const totalNuevo = Math.round(aportes.reduce((s, f) => s + Number(f.monto), 0) * ratio);
-    let acumulado = 0;
-    const cambios = aportes.map((f, i) => {
-      const nuevo = i === aportes.length - 1 ? totalNuevo - acumulado : Math.round(Number(f.monto) * ratio);
-      acumulado += nuevo;
-      return {
-        funding: f,
-        nuevo,
-        categoria: allCategories.find((c) => c.id === f.category_id)?.nombre || 'Categoría',
-      };
+    const { cambios, advertencias } = calcularAjusteReparto({
+      aportes,
+      montoViejo,
+      montoNuevo,
+      categorias: allCategories,
+      saldoPorCategoria,
     });
-    if (cambios.some((c) => c.nuevo <= 0)) {
-      throw new Error('Con ese monto, alguna categoría del reparto quedaría en cero. Edita el reparto a mano.');
-    }
-    const delta = {};
-    for (const c of cambios) {
-      delta[c.funding.category_id] = (delta[c.funding.category_id] || 0) + c.nuevo - Number(c.funding.monto);
-    }
-    const advertencias = Object.entries(delta)
-      .filter(([catId, d]) => (saldoPorCategoria[catId] || 0) + d < 0)
-      .map(([catId, d]) => ({
-        categoria: allCategories.find((c) => c.id === catId)?.nombre || 'Categoría',
-        saldoDespues: (saldoPorCategoria[catId] || 0) + d,
-      }));
     setIncomeAjuste({ ingreso, values, montoNuevo, cambios, advertencias });
   };
 

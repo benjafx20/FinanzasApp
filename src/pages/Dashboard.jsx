@@ -1,4 +1,9 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { calcularSaldos } from '../utils/balances';
+import { InventoryAlert } from '../components/inventory/InventoryAlert';
+import { equiposSinVender } from '../utils/inventory';
+import { SettingsModal } from '../components/settings/SettingsModal';
+import { useMerchantHabits } from '../hooks/useMerchantHabits';
 import { alertar, confirmar } from '../utils/dialogs';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
@@ -51,6 +56,14 @@ import { MonthlySummaryModal } from '../components/summary/MonthlySummaryModal';
 import { getClosedMonths } from '../utils/monthlySummary';
 import { DebtsSection } from '../components/debts/DebtsSection';
 import { DebtForm } from '../components/debts/DebtForm';
+import { PayDebtForm } from '../components/debts/PayDebtForm';
+import { EditTransferForm } from '../components/budgets/EditTransferForm';
+import { GoalDetailModal } from '../components/goals/GoalDetailModal';
+import { CloseGoalForm } from '../components/goals/CloseGoalForm';
+import { IncomesSection } from '../components/income/IncomesSection';
+import { DistributeIncomeForm } from '../components/income/DistributeIncomeForm';
+import { movimientosDeDeudas } from '../utils/debtMovements';
+import { evaluarBorradoCategoria } from '../utils/categoryDeletion';
 import { GlobalSearchModal } from '../components/search/GlobalSearchModal';
 import { AssistantModal } from '../components/assistant/AssistantModal';
 import { buildFinancialContext } from '../utils/buildFinancialContext';
@@ -73,7 +86,11 @@ export function Dashboard() {
   const [presetExpenseCategoryId, setPresetExpenseCategoryId] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingIncome, setEditingIncome] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const habits = useMerchantHabits(user?.id);
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [closingGoal, setClosingGoal] = useState(null);
   const [contributingGoal, setContributingGoal] = useState(null);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [transferFromCategory, setTransferFromCategory] = useState(null);
@@ -85,6 +102,13 @@ export function Dashboard() {
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [summaryModal, setSummaryModal] = useState(null); // null | { initialMonthKey }
   const [showDebtModal, setShowDebtModal] = useState(false);
+  const [editingDebt, setEditingDebt] = useState(null);
+  const [payingDebt, setPayingDebt] = useState(null);
+  const [editingTransfer, setEditingTransfer] = useState(null);
+  const [editingRecurring, setEditingRecurring] = useState(null);
+  const [viewingGoal, setViewingGoal] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [distributingIncome, setDistributingIncome] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -115,8 +139,8 @@ export function Dashboard() {
   const {
     transfers,
     addTransfer,
+    updateTransfer,
     deleteTransfer,
-    netoPorCategoria,
     refetch: refetchTransfers,
   } = useBudgetTransfers(user?.id);
   const {
@@ -125,7 +149,7 @@ export function Dashboard() {
     addIncomeFundings,
     updateFunding,
     deleteFunding,
-    totalPorCategoria,
+    deleteFundingsByIncome,
     refetch: refetchFundings,
   } = useCategoryFundings(user?.id);
   const {
@@ -133,9 +157,12 @@ export function Dashboard() {
     contributions: savingsContributions,
     error: goalsError,
     addGoal,
+    updateGoal,
     deleteGoal,
     setGoalCompleted,
     addContribution,
+    updateContribution,
+    deleteContribution,
     totalByGoal,
     refetch: refetchGoals,
   } = useSavingsGoals(user?.id);
@@ -143,6 +170,7 @@ export function Dashboard() {
     debts,
     error: debtsError,
     addDebt,
+    updateDebt,
     markAsPaid: markDebtAsPaid,
     deleteDebt,
     refetch: refetchDebts,
@@ -158,6 +186,7 @@ export function Dashboard() {
     recurring,
     error: recurringError,
     addRecurring,
+    updateRecurring,
     toggleActivo,
     deleteRecurring,
     refetch: refetchRecurring,
@@ -166,6 +195,7 @@ export function Dashboard() {
     plans: weeklyPlans,
     closures: weeklyClosures,
     createPlan: createWeeklyPlan,
+    updatePlan: updateWeeklyPlan,
     stopPlan: stopWeeklyPlan,
     refetch: refetchWeeklyPlans,
   } = useWeeklyPlans(user?.id);
@@ -211,46 +241,22 @@ export function Dashboard() {
   }, [expenses, monthKey]);
 
 
-  // Gasto que realmente le baja el SALDO a cada categoría: el de su propia
-  // plata (funding_category_id vacío) o el que financió para otra
-  // categoría (funding_category_id = esta categoría).
-  const gastoParaSaldoPorCategoria = useMemo(() => {
-    const map = {};
-    for (const exp of expenses) {
-      const origenSaldo = exp.funding_category_id || exp.category_id;
-      if (!origenSaldo) continue;
-      map[origenSaldo] = (map[origenSaldo] || 0) + Number(exp.monto);
-    }
-    return map;
-  }, [expenses]);
+  // Plata que las deudas mueven de/hacia categorías (solo si se eligió categoría).
+  const movimientosDeuda = useMemo(() => movimientosDeDeudas(debts), [debts]);
 
-  const totalFundingsPorCategoria = useMemo(() => totalPorCategoria(), [totalPorCategoria]);
-  const netoTransferenciasPorCategoria = useMemo(() => netoPorCategoria(), [netoPorCategoria]);
-
-  // Lo que se mandó a metas de ahorro, por categoría de origen: sale del saldo.
-  const ahorradoPorCategoria = useMemo(() => {
-    const map = {};
-    for (const c of savingsContributions) {
-      if (c.source_category_id) map[c.source_category_id] = (map[c.source_category_id] || 0) + Number(c.monto);
-    }
-    return map;
-  }, [savingsContributions]);
-
-  // El saldo real: nunca se resetea solo, sube con aportes/traspasos
-  // entrantes, baja con traspasos salientes y gastos reales.
-  const { asignadoPorCategoria, saldoPorCategoria } = useMemo(() => {
-    const asignadoPorCategoria = {};
-    const saldoPorCategoria = {};
-    for (const cat of allCategories) {
-      const aportes = totalFundingsPorCategoria[cat.id] || 0;
-      const neto = netoTransferenciasPorCategoria[cat.id] || 0;
-      const gastado = gastoParaSaldoPorCategoria[cat.id] || 0;
-      asignadoPorCategoria[cat.id] = aportes + neto;
-      const ahorrado = ahorradoPorCategoria[cat.id] || 0;
-      saldoPorCategoria[cat.id] = aportes + neto - gastado - ahorrado;
-    }
-    return { asignadoPorCategoria, saldoPorCategoria };
-  }, [allCategories, totalFundingsPorCategoria, netoTransferenciasPorCategoria, gastoParaSaldoPorCategoria, ahorradoPorCategoria]);
+  // Saldo real de cada categoría (ver utils/balances.js).
+  const { asignadoPorCategoria, saldoPorCategoria } = useMemo(
+    () =>
+      calcularSaldos({
+        categories: allCategories,
+        expenses,
+        fundings,
+        transfers,
+        contributions: savingsContributions,
+        movimientosDeuda,
+      }),
+    [allCategories, expenses, fundings, transfers, savingsContributions, movimientosDeuda]
+  );
 
   // Balance TOTAL (no del mes): cuánta plata deberías tener en total en
   // este momento, sumando el saldo real de todas las categorías. A
@@ -319,6 +325,23 @@ export function Dashboard() {
     return fundings.filter((f) => f.category_id === viewingCategory.id);
   }, [fundings, viewingCategory]);
 
+  // Inventario de equipos: por categoría marcada como inventario, los grupos con
+  // compras y sin ventas. Los que pasan del plazo generan un aviso arriba.
+  const equiposPorCategoria = useMemo(() => {
+    const map = {};
+    for (const cat of allCategories) {
+      if (cat.es_inventario) map[cat.id] = equiposSinVender({ categoryId: cat.id, expenses, fundings });
+    }
+    return map;
+  }, [allCategories, expenses, fundings]);
+  const equiposAtrasados = useMemo(
+    () =>
+      allCategories
+        .filter((c) => c.es_inventario)
+        .flatMap((c) => (equiposPorCategoria[c.id] || []).filter((e) => e.atrasado).map((e) => ({ ...e, categoria: c }))),
+    [allCategories, equiposPorCategoria]
+  );
+
   // Grupos ("agrupar como") ya usados, para sugerirlos en los formularios.
   const etiquetasConocidas = (categoryId) => etiquetasDe([...expenses, ...fundings], categoryId);
 
@@ -329,7 +352,7 @@ export function Dashboard() {
     mostrarResumen,
     cerrarResumen,
     handleStopWeeklyPlan,
-  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions, stopWeeklyPlan });
+  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions, movimientosDeuda, stopWeeklyPlan });
 
   const {
     incomeAjuste,
@@ -360,7 +383,11 @@ export function Dashboard() {
     updateCategory: categoriesHook.updateCategory,
     moveCategory: categoriesHook.moveCategory,
     setHidden: categoriesHook.setHidden,
-    checkCategoryUsage: categoriesHook.checkCategoryUsage,
+    // Además de lo que usa, devuelve el saldo: con plata adentro no se puede eliminar.
+    checkCategoryUsage: async (categoryId) => ({
+      ...(await categoriesHook.checkCategoryUsage(categoryId)),
+      saldo: saldoPorCategoria[categoryId] || 0,
+    }),
     deleteCategory: categoriesHook.deleteCategory,
   };
 
@@ -384,16 +411,10 @@ export function Dashboard() {
 
   // Cerrar una meta: la plata ahorrada se da por usada (sigue descontada de las
   // categorías de donde salió). Reabrirla permite eliminarla y recuperar la plata.
-  const handleCloseGoal = async (goal) => {
-    if (!(await confirmar(`¿Cerrar la meta "${goal.nombre}"? La plata ahorrada se da por usada y NO vuelve a las categorías.`, { titulo: 'Cerrar meta' }))) return;
-    try {
-      await setGoalCompleted(goal.id, true);
-    } catch (err) {
-      alertar(err.message);
-    }
-  };
+  const handleCloseGoal = (goal) => setClosingGoal(goal);
 
   const handleReopenGoal = async (goal) => {
+    if (goal.used_for && !(await confirmar(`Al reabrir "${goal.nombre}" se borra lo que anotaste de en qué se gastó. ¿Continuar?`))) return;
     try {
       await setGoalCompleted(goal.id, false);
     } catch (err) {
@@ -401,18 +422,28 @@ export function Dashboard() {
     }
   };
 
-  const handleMarkDebtPaid = async (id) => {
-    try {
-      await markDebtAsPaid(id);
-    } catch (err) {
-      alertar(err.message);
-    }
+  // Guardar un gasto también le enseña a la app qué categoría usas con ese comercio
+  // (la nota). Aprender nunca debe impedir que el gasto se guarde.
+  const handleAddExpense = async (values) => {
+    const creado = await addExpense(values);
+    habits.learn(values.nota, values.categoryId);
+    return creado;
   };
 
-  const handleDeleteDebt = async (id) => {
-    if (!(await confirmar('¿Eliminar este registro?'))) return;
+  const handleUpdateExpense = async (values) => {
+    const actualizado = await updateExpense(editingExpense.id, values);
+    habits.learn(values.nota, values.categoryId);
+    return actualizado;
+  };
+
+  const handleMarkDebtPaid = (debt) => setPayingDebt(debt);
+
+  const handleDeleteDebt = async (debt) => {
+    const mueve = movimientosDeuda.length > 0 && (debt.source_category_id || debt.destination_category_id);
+    const aviso = mueve ? ' La plata que movió vuelve a su categoría.' : '';
+    if (!(await confirmar(`¿Eliminar este registro?${aviso}`))) return;
     try {
-      await deleteDebt(id);
+      await deleteDebt(debt.id);
     } catch (err) {
       alertar(err.message);
     }
@@ -452,10 +483,8 @@ export function Dashboard() {
   const handleDeleteIncomeFromDetail = async (incomeId) => {
     if (!(await confirmar('¿Eliminar este ingreso? Se quitará también de todas las categorías en las que se repartió.'))) return;
     try {
-      const fundingsDelIngreso = fundings.filter((f) => f.income_id === incomeId);
-      for (const f of fundingsDelIngreso) {
-        await deleteFunding(f.id);
-      }
+      // Primero todos los aportes del ingreso de una vez, y luego el ingreso.
+      await deleteFundingsByIncome(incomeId);
       await deleteIncome(incomeId);
     } catch (err) {
       alertar(err.message);
@@ -467,11 +496,12 @@ export function Dashboard() {
       alertar('Las categorías predefinidas no se pueden eliminar — puedes ocultarlas desde "Editar categorías".');
       return;
     }
-    const usage = await categoriesHook.checkCategoryUsage(cat.id);
-    const total = usage.gastos + usage.recurrentes;
-    const mensaje = total > 0
-      ? `"${cat.nombre}" tiene ${usage.gastos} gasto(s) y ${usage.recurrentes} gasto(s) recurrente(s) asociados.\n\nNo se borrará ningún gasto, pero perderán la categoría asignada (quedarán marcados como "Sin categoría").\n\n¿Quieres continuar?`
-      : `¿Eliminar la categoría "${cat.nombre}"?`;
+    const usage = await categoryManagement.checkCategoryUsage(cat.id);
+    const { bloquear, mensaje } = evaluarBorradoCategoria(cat, usage);
+    if (bloquear) {
+      await alertar(mensaje, 'No se puede eliminar');
+      return;
+    }
     if (!(await confirmar(mensaje))) return;
     try {
       await categoriesHook.deleteCategory(cat.id);
@@ -511,6 +541,7 @@ export function Dashboard() {
         onSignOut={signOut}
         onShowHelp={replayOnboarding}
         onShowSearch={() => setShowSearchModal(true)}
+        onShowSettings={() => setShowSettings(true)}
       />
 
       {!isOnline && <OfflineBanner />}
@@ -597,6 +628,9 @@ export function Dashboard() {
             {mostrarResumen && (
               <WeeklySummaryCard items={resumenItems} categorias={allCategories} onDismiss={cerrarResumen} />
             )}
+            {equiposAtrasados.length > 0 && (
+              <InventoryAlert equipos={equiposAtrasados} onOpen={(cat) => setViewingCategory(cat)} />
+            )}
             <section className="dashboard__section dashboard__section--wide">
               <div className="dashboard__section-header">
                 <h2 className="dashboard__section-title">Categorías</h2>
@@ -635,9 +669,22 @@ export function Dashboard() {
               {transfers.length > 0 && (
                 <div className="dashboard__transfers">
                   <span className="dashboard__transfers-title">Movimientos entre categorías</span>
-                  <TransferHistory transfers={transfers} onUndo={handleUndoTransfer} />
+                  <TransferHistory transfers={transfers} onUndo={handleUndoTransfer} onEdit={setEditingTransfer} />
                 </div>
               )}
+            </section>
+
+            <section className="dashboard__section dashboard__section--wide">
+              <div className="dashboard__section-header">
+                <h2 className="dashboard__section-title">Ingresos</h2>
+              </div>
+              <IncomesSection
+                incomes={incomes}
+                fundings={fundings}
+                onEdit={setEditingIncome}
+                onDelete={handleDeleteIncomeFromDetail}
+                onDistribute={setDistributingIncome}
+              />
             </section>
 
             <div className="dashboard__row">
@@ -684,6 +731,8 @@ export function Dashboard() {
                       goal={goal}
                       acumulado={totalByGoal(goal.id)}
                       onAportar={() => setContributingGoal(goal)}
+                      onEdit={setEditingGoal}
+                      onVerAportes={setViewingGoal}
                       onDelete={handleDeleteGoal}
                       onCerrar={handleCloseGoal}
                       onReabrir={handleReopenGoal}
@@ -708,6 +757,7 @@ export function Dashboard() {
                       key={r.id}
                       recurring={r}
                       onToggle={toggleActivo}
+                      onEdit={setEditingRecurring}
                       onDelete={handleDeleteRecurring}
                     />
                   ))}
@@ -724,7 +774,7 @@ export function Dashboard() {
               <button className="dashboard__add-link" onClick={() => setShowDebtModal(true)}>+ Nueva</button>
             </div>
             {debtsError && <p className="dashboard__error">{debtsError}</p>}
-            <DebtsSection debts={debts} onMarkPaid={handleMarkDebtPaid} onDelete={handleDeleteDebt} />
+            <DebtsSection debts={debts} onMarkPaid={handleMarkDebtPaid} onEdit={setEditingDebt} onDelete={handleDeleteDebt} />
           </section>
         )}
 
@@ -759,7 +809,8 @@ export function Dashboard() {
               expenses={expenses}
               defaultCategoryId={presetExpenseCategoryId}
               saldosPorCategoria={saldoPorCategoria}
-              onSubmit={addExpense}
+              lookupHabit={habits.lookup}
+              onSubmit={handleAddExpense}
               onDone={closeNewRecordModal}
               categoryManagement={categoryManagement}
             />
@@ -781,7 +832,8 @@ export function Dashboard() {
             expenses={expenses}
             expense={editingExpense}
             saldosPorCategoria={saldoPorCategoria}
-            onSubmit={(values) => updateExpense(editingExpense.id, values)}
+            lookupHabit={habits.lookup}
+            onSubmit={handleUpdateExpense}
             onDone={() => setEditingExpense(null)}
             categoryManagement={categoryManagement}
           />
@@ -798,12 +850,32 @@ export function Dashboard() {
         )}
       </Modal>
 
+      <Modal open={!!closingGoal} onClose={() => setClosingGoal(null)} title="Cerrar meta">
+        {closingGoal && (
+          <CloseGoalForm
+            goal={closingGoal}
+            onSubmit={(datos) => setGoalCompleted(closingGoal.id, true, datos)}
+            onDone={() => setClosingGoal(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!editingGoal} onClose={() => setEditingGoal(null)} title="Editar meta de ahorro">
+        {editingGoal && (
+          <GoalForm
+            goal={editingGoal}
+            onSubmit={(valores) => updateGoal(editingGoal.id, valores)}
+            onDone={() => setEditingGoal(null)}
+          />
+        )}
+      </Modal>
+
       <Modal open={showGoalModal} onClose={() => setShowGoalModal(false)} title="Nueva meta de ahorro">
         <GoalForm onSubmit={addGoal} onDone={() => setShowGoalModal(false)} />
       </Modal>
 
       <Modal open={showDebtModal} onClose={() => setShowDebtModal(false)} title="Deuda o préstamo">
-        <DebtForm onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
+        <DebtForm categories={categories} saldoPorCategoria={saldoPorCategoria} onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
       </Modal>
 
       <GlobalSearchModal
@@ -877,6 +949,25 @@ export function Dashboard() {
         )}
       </Modal>
 
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        userId={user?.id}
+        datos={{
+          expenses,
+          incomes,
+          fundings,
+          transfers,
+          goals,
+          contributions: savingsContributions,
+          debts,
+          recurring,
+          plans: weeklyPlans,
+          categories: allCategories,
+          saldoPorCategoria,
+        }}
+      />
+
       <EditFundingModal
         funding={editingFunding}
         onClose={() => setEditingFunding(null)}
@@ -895,6 +986,96 @@ export function Dashboard() {
         onBack={volverAEditar}
         onClose={cancelarAjuste}
       />
+
+      <Modal open={!!editingDebt} onClose={() => setEditingDebt(null)} title="Editar deuda o préstamo">
+        {editingDebt && (
+          <DebtForm
+            debt={editingDebt}
+            categories={categories}
+            saldoPorCategoria={saldoPorCategoria}
+            onSubmit={(valores) => updateDebt(editingDebt.id, valores)}
+            onDone={() => setEditingDebt(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!payingDebt} onClose={() => setPayingDebt(null)} title="Marcar como saldada">
+        {payingDebt && (
+          <PayDebtForm
+            debt={payingDebt}
+            categories={categories}
+            saldoPorCategoria={saldoPorCategoria}
+            onSubmit={(debt, opciones) => markDebtAsPaid(debt.id, opciones)}
+            onDone={() => setPayingDebt(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!editingTransfer} onClose={() => setEditingTransfer(null)} title="Editar movimiento">
+        {editingTransfer && (
+          <EditTransferForm
+            transfer={editingTransfer}
+            disponibleOrigen={(saldoPorCategoria[editingTransfer.from_category_id] || 0) + Number(editingTransfer.monto)}
+            onSubmit={(valores) => updateTransfer(editingTransfer.id, valores)}
+            onDone={() => setEditingTransfer(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!editingRecurring} onClose={() => setEditingRecurring(null)} title="Editar gasto recurrente">
+        {editingRecurring && (
+          <RecurringExpenseForm
+            recurring={editingRecurring}
+            categories={categories}
+            onSubmit={(valores) => updateRecurring(editingRecurring.id, valores)}
+            onDone={() => setEditingRecurring(null)}
+            categoryManagement={categoryManagement}
+          />
+        )}
+      </Modal>
+
+      <GoalDetailModal
+        goal={viewingGoal}
+        contributions={savingsContributions}
+        categories={categories}
+        allCategories={allCategories}
+        saldoPorCategoria={saldoPorCategoria}
+        onUpdate={updateContribution}
+        onDelete={deleteContribution}
+        onClose={() => setViewingGoal(null)}
+      />
+
+      <Modal open={!!editingPlan} onClose={() => setEditingPlan(null)} title="Editar presupuesto semanal">
+        {editingPlan && (
+          <WeeklyPlanForm
+            category={editingPlan.category}
+            saldo={saldoPorCategoria[editingPlan.category.id] || 0}
+            otrasCategorias={categories.filter((c) => c.id !== editingPlan.category.id)}
+            plan={editingPlan.plan}
+            minSemanas={Math.max(1, ...weeklyClosures.filter((c) => c.plan_id === editingPlan.plan.id).map((c) => c.semana_num))}
+            onSubmit={(valores) => updateWeeklyPlan(editingPlan.plan.id, valores)}
+            onDone={() => setEditingPlan(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!distributingIncome} onClose={() => setDistributingIncome(null)} title="Repartir ingreso">
+        {distributingIncome && (() => {
+          const repartido = fundings
+            .filter((f) => f.income_id === distributingIncome.id)
+            .reduce((sum, f) => sum + Number(f.monto), 0);
+          return (
+            <DistributeIncomeForm
+              income={distributingIncome}
+              restante={Math.max(0, Number(distributingIncome.monto) - repartido)}
+              categories={categories}
+              etiquetasSugeridas={etiquetasConocidas()}
+              onSubmit={(reparto, etiqueta) => addIncomeFundings(distributingIncome.id, reparto, etiqueta)}
+              onDone={() => setDistributingIncome(null)}
+            />
+          );
+        })()}
+      </Modal>
 
       <Modal open={!!weeklyPlanCategory} onClose={() => setWeeklyPlanCategory(null)} title="Presupuesto semanal">
         {weeklyPlanCategory && (
@@ -930,6 +1111,13 @@ export function Dashboard() {
             }
             onActivarPresupuesto={() => {
               setWeeklyPlanCategory(viewingCategory);
+              setViewingCategory(null);
+            }}
+            esInventario={!!allCategories.find((c) => c.id === viewingCategory.id)?.es_inventario}
+            equipos={equiposPorCategoria[viewingCategory.id] || []}
+            onToggleInventario={(valor) => categoriesHook.setInventario(viewingCategory.id, valor).catch((err) => alertar(err.message))}
+            onEditarPresupuesto={(plan) => {
+              setEditingPlan({ category: viewingCategory, plan });
               setViewingCategory(null);
             }}
             onApagarPresupuesto={handleStopWeeklyPlan}
@@ -990,6 +1178,7 @@ export function Dashboard() {
         fundings={fundings}
         transfers={transfers}
         contributions={savingsContributions}
+        goals={goals}
         debts={debts}
         categories={allCategories}
       />

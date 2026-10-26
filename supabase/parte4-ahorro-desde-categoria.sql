@@ -11,3 +11,7 @@ create index if not exists idx_savings_contributions_source on savings_contribut
 -- Meta cerrada: ya usaste la plata ahorrada. Sus aportes siguen descontados de las
 -- categorías (la plata se gastó) y la meta ya no se puede eliminar sin reabrirla.
 alter table savings_goals add column if not exists completed_at timestamptz;
+
+-- En qué se gastó la plata de una meta cerrada (solo anotación, no mueve plata).
+alter table savings_goals add column if not exists used_for text;
+alter table savings_goals add column if not exists used_at date;

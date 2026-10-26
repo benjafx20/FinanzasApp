@@ -110,6 +110,9 @@ create table if not exists savings_goals (
   fecha_objetivo date,
   -- Meta cerrada: la plata ahorrada ya se usó (los aportes siguen descontados).
   completed_at timestamptz,
+  -- En qué se gastó la plata de la meta cerrada y cuándo (solo anotación).
+  used_for text,
+  used_at date,
   created_at timestamptz default now()
 );
 
@@ -245,6 +248,9 @@ create table if not exists debts (
   fecha date not null default current_date,
   pagado boolean not null default false,
   fecha_pago date,
+  -- Opcionales: categoría de la que sale / a la que entra la plata (null = solo registro).
+  source_category_id uuid references categories(id) on delete set null,
+  destination_category_id uuid references categories(id) on delete set null,
   created_at timestamptz default now()
 );
 

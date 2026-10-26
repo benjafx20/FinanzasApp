@@ -1,10 +1,10 @@
-import { Check, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Check, Trash2, Pencil, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Amount } from '../ui/Amount';
 import './DebtRow.css';
 
 // tipo 'prestado' = te deben (plata que sigue siendo tuya).
 // tipo 'debo' = tú debes (plata que no es tuya aunque la tengas).
-export function DebtRow({ debt, onMarkPaid, onDelete }) {
+export function DebtRow({ debt, onMarkPaid, onEdit, onDelete }) {
   const esPrestamo = debt.tipo === 'prestado';
 
   return (
@@ -20,26 +20,29 @@ export function DebtRow({ debt, onMarkPaid, onDelete }) {
 
       <div className="debt-row__right">
         <span className="debt-row__monto"><Amount value={debt.monto} /></span>
-        {!debt.pagado && (
-          <div className="debt-row__actions">
+        <div className="debt-row__actions">
+          {!debt.pagado && (
             <button
               className="debt-row__action"
-              onClick={() => onMarkPaid(debt.id)}
+              onClick={() => onMarkPaid(debt)}
               aria-label="Marcar como saldada"
               title="Marcar como saldada"
             >
               <Check size={14} />
             </button>
-            <button
-              className="debt-row__action debt-row__action--delete"
-              onClick={() => onDelete(debt.id)}
-              aria-label="Eliminar"
-              title="Eliminar"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        )}
+          )}
+          <button className="debt-row__action" onClick={() => onEdit(debt)} aria-label="Editar" title="Editar">
+            <Pencil size={14} />
+          </button>
+          <button
+            className="debt-row__action debt-row__action--delete"
+            onClick={() => onDelete(debt)}
+            aria-label="Eliminar"
+            title="Eliminar"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );

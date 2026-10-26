@@ -4,7 +4,7 @@ import { DebtRow } from './DebtRow';
 import { Amount } from '../ui/Amount';
 import './DebtsSection.css';
 
-export function DebtsSection({ debts, onMarkPaid, onDelete }) {
+export function DebtsSection({ debts, onMarkPaid, onEdit, onDelete }) {
   const [showPagadas, setShowPagadas] = useState(false);
 
   const { activas, pagadas, totalTeDeben, totalDebes } = useMemo(() => {
@@ -33,7 +33,7 @@ export function DebtsSection({ debts, onMarkPaid, onDelete }) {
       ) : (
         <div className="debts-section__lista">
           {activas.map((d) => (
-            <DebtRow key={d.id} debt={d} onMarkPaid={onMarkPaid} onDelete={onDelete} />
+            <DebtRow key={d.id} debt={d} onMarkPaid={onMarkPaid} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -47,7 +47,7 @@ export function DebtsSection({ debts, onMarkPaid, onDelete }) {
           {showPagadas && (
             <div className="debts-section__lista">
               {pagadas.map((d) => (
-                <DebtRow key={d.id} debt={d} onMarkPaid={onMarkPaid} onDelete={onDelete} />
+                <DebtRow key={d.id} debt={d} onMarkPaid={onMarkPaid} onEdit={onEdit} onDelete={onDelete} />
               ))}
             </div>
           )}

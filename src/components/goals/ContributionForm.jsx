@@ -8,9 +8,12 @@ const DE_AFUERA = '__afuera__';
 
 // El aporte a una meta sale del saldo de una categoría (así la plata no queda
 // contada dos veces). Si es plata que no está en la app, se elige "de afuera".
-export function ContributionForm({ goal, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
-  const [monto, setMonto] = useState('');
-  const [origen, setOrigen] = useState('');
+// Con `contribution` corrige un aporte existente.
+export function ContributionForm({ goal, contribution, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
+  const editando = !!contribution;
+  const [monto, setMonto] = useState(contribution ? String(contribution.monto) : '');
+  // Un aporte antiguo no tiene origen: se obliga a elegir para que quede claro.
+  const [origen, setOrigen] = useState(contribution?.source_category_id || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +26,9 @@ export function ContributionForm({ goal, categories = [], saldoPorCategoria = {}
     }
     const montoNum = Number(monto) || 0;
     const categoria = categories.find((c) => c.id === origen);
-    const saldo = categoria ? saldoPorCategoria[categoria.id] || 0 : 0;
+    // Al corregir un aporte, lo que ya había sacado de esa categoría vuelve a estar disponible.
+    const yaSacado = editando && contribution.source_category_id === origen ? Number(contribution.monto) : 0;
+    const saldo = categoria ? (saldoPorCategoria[categoria.id] || 0) + yaSacado : 0;
     if (categoria && montoNum > saldo) {
       const seguir = await confirmar(
         `${categoria.nombre} tiene ${formatCurrency(saldo)} y vas a sacar ${formatCurrency(montoNum)}. Quedará en ${formatCurrency(saldo - montoNum)}. ¿Continuar?`,
@@ -69,7 +74,7 @@ export function ContributionForm({ goal, categories = [], saldoPorCategoria = {}
       </p>
       {error && <p className="auth-error" role="alert">{error}</p>}
       <Button type="submit" fullWidth disabled={loading}>
-        {loading ? 'Guardando…' : 'Registrar aporte'}
+        {loading ? 'Guardando…' : editando ? 'Guardar cambios' : 'Registrar aporte'}
       </Button>
     </form>
   );

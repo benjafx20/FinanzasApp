@@ -1,31 +1,39 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/pwa-192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#6B3FD9" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17121F" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Finanzas" />
-    <title>Mis Finanzas</title>
-    <script>
-      (function () {
-        try {
-          var storedTheme = localStorage.getItem('finanzas_theme_preference');
-          var theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-          document.documentElement.setAttribute('data-theme', theme);
+# Finanzas App
 
-          var storedPalette = localStorage.getItem('finanzas_palette_preference');
-          document.documentElement.setAttribute('data-palette', storedPalette || 'morado');
-        } catch (e) {}
-      })();
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+Aplicación para llevar el control de gastos, ingresos, metas de ahorro, deudas y presupuestos personales.
+
+## Requisitos
+
+- Node.js 18+
+- npm
+
+## Inicio rápido
+
+1. Copia el archivo `.env.example` a `.env`.
+2. Completa tus variables de Supabase.
+3. Instala dependencias:
+
+```bash
+npm install
+```
+
+4. Inicia la app:
+
+```bash
+npm run dev
+```
+
+## Variables de entorno
+
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-anon-key-publica
+```
+
+## Scripts disponibles
+
+```bash
+npm run dev
+npm run build
+npm run lint
+```

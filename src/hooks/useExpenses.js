@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchAllPages } from '../lib/fetchAll';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 import { getPendingExpenses, queuePendingExpense, removePendingExpense, updatePendingExpense } from '../utils/offlineQueue';
 import { guardarBoleta, obtenerBoleta, vincularBoleta, borrarBoleta, boletasVinculadas } from '../utils/receiptOutbox';
@@ -53,11 +54,14 @@ export function useExpenses(userId) {
       // segundo criterio el orden que devuelve Postgres no es estable y podía
       // parecer que dependía de si el gasto tenía nota o no. `created_at` sí
       // tiene hora real y desempata por orden de creación.
-      supabase
-        .from('expenses')
-        .select(SELECT_EXPENSE)
-        .order('fecha', { ascending: false })
-        .order('created_at', { ascending: false })
+      fetchAllPages(() =>
+        supabase
+          .from('expenses')
+          .select(SELECT_EXPENSE)
+          .order('fecha', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id')
+      )
     );
 
     if (fetchError) {

@@ -6,7 +6,7 @@ import { alertar, confirmar } from '../utils/dialogs';
 // Todo lo que la pantalla necesita del presupuesto semanal: el plan activo de
 // cada categoría, cómo va la semana en curso, y el resumen de la semana que
 // cerró el domingo (con su "Entendido").
-export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions = [], stopWeeklyPlan }) {
+export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions = [], movimientosDeuda = [], stopWeeklyPlan }) {
   const planActivoPorCategoria = useMemo(() => {
     const map = {};
     for (const p of weeklyPlans) if (p.estado === 'activo') map[p.category_id] = p;
@@ -21,8 +21,10 @@ export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fun
       ...transfers
         .filter((t) => !(t.nota || '').startsWith('Sobrante semana'))
         .map((t) => ({ category_id: t.to_category_id, fecha: t.fecha, monto: t.monto })),
+      // Lo que te devolvieron de un préstamo y entró a la categoría.
+      ...movimientosDeuda.filter((m) => m.monto > 0).map((m) => ({ category_id: m.category_id, fecha: m.fecha, monto: m.monto })),
     ],
-    [fundings, transfers]
+    [fundings, transfers, movimientosDeuda]
   );
 
   // Gastos + lo que se mandó a metas de ahorro desde cada categoría: todo eso
@@ -33,8 +35,10 @@ export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fun
       ...savingsContributions
         .filter((c) => c.source_category_id)
         .map((c) => ({ category_id: c.source_category_id, fecha: c.fecha, monto: c.monto })),
+      // Lo que las deudas sacaron de la categoría (préstamos, deudas pagadas).
+      ...movimientosDeuda.filter((m) => m.monto < 0).map((m) => ({ category_id: m.category_id, fecha: m.fecha, monto: -m.monto })),
     ],
-    [expenses, savingsContributions]
+    [expenses, savingsContributions, movimientosDeuda]
   );
 
   const semanaPorCategoria = useMemo(() => {

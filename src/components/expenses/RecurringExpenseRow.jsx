@@ -1,8 +1,9 @@
+import { Pencil } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Amount } from '../ui/Amount';
 import './RecurringExpenseRow.css';
 
-export function RecurringExpenseRow({ recurring, onToggle, onDelete }) {
+export function RecurringExpenseRow({ recurring, onToggle, onEdit, onDelete }) {
   const cat = recurring.categories;
 
   return (
@@ -22,6 +23,9 @@ export function RecurringExpenseRow({ recurring, onToggle, onDelete }) {
         />
         <span className="recurring-row__slider" />
       </label>
+      <button className="recurring-row__delete" onClick={() => onEdit(recurring)} aria-label={`Editar ${recurring.nombre}`}>
+        <Pencil size={13} />
+      </button>
       <button className="recurring-row__delete" onClick={() => onDelete(recurring.id)} aria-label={`Eliminar ${recurring.nombre}`}>
         ✕
       </button>
