@@ -1,10 +1,12 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { calcularFaltante, opcionesParaCubrir } from '../utils/shortfall';
+import { formatCurrency } from '../utils/formatCurrency';
 import { calcularSaldos } from '../utils/balances';
 import { InventoryAlert } from '../components/inventory/InventoryAlert';
 import { equiposSinVender } from '../utils/inventory';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { useMerchantHabits } from '../hooks/useMerchantHabits';
-import { alertar, confirmar } from '../utils/dialogs';
+import { alertar, confirmar, cubrirFaltante } from '../utils/dialogs';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useExpenses } from '../hooks/useExpenses';
@@ -352,7 +354,7 @@ export function Dashboard() {
     mostrarResumen,
     cerrarResumen,
     handleStopWeeklyPlan,
-  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions, movimientosDeuda, stopWeeklyPlan });
+  } = useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions, movimientosDeuda, saldoPorCategoria, stopWeeklyPlan });
 
   const {
     incomeAjuste,
@@ -424,16 +426,84 @@ export function Dashboard() {
 
   // Guardar un gasto también le enseña a la app qué categoría usas con ese comercio
   // (la nota). Aprender nunca debe impedir que el gasto se guarde.
+  // Si una categoría no tiene plata suficiente para lo que vas a hacer, avisa y deja
+  // elegir de qué otra categoría sacar lo que falta. Eso se registra como un
+  // movimiento de plata (queda en el historial). Cancelar corta la operación sin
+  // mostrar error. `mensaje` puede ser una función ({ saldo, faltante }) => texto.
+  const asegurarSaldo = async ({ categoryId, monto, saldoExtra = 0, motivo, mensaje }) => {
+    const saldo = (saldoPorCategoria[categoryId] || 0) + saldoExtra;
+    const faltante = calcularFaltante({ saldo, monto: Number(monto) });
+    if (faltante <= 0) return;
+    const categoria = allCategories.find((c) => c.id === categoryId);
+    const decision = await cubrirFaltante({
+      mensaje: mensaje
+        ? mensaje({ saldo, faltante })
+        : `${categoria?.nombre ?? 'La categoría'} tiene ${formatCurrency(saldo)} y vas a usar ${formatCurrency(Number(monto))}: te faltan ${formatCurrency(faltante)}.`,
+      faltante,
+      opciones: opcionesParaCubrir({ categorias: categories, saldoPorCategoria, excluirId: categoryId, faltante }),
+    });
+    if (!decision) throw new Error('');
+    if (decision.accion === 'mover') {
+      await addTransfer({
+        fromCategoryId: decision.fromCategoryId,
+        toCategoryId: categoryId,
+        monto: faltante,
+        nota: `Para cubrir: ${motivo}`,
+      });
+    }
+  };
+
+  // Guardar un gasto también le enseña a la app qué categoría usas con ese comercio
+  // (la nota). Aprender nunca debe impedir que el gasto se guarde.
   const handleAddExpense = async (values) => {
+    const origenId = values.fundingCategoryId || values.categoryId;
+    if (origenId) await asegurarSaldo({ categoryId: origenId, monto: values.monto, motivo: values.nota || 'un gasto' });
     const creado = await addExpense(values);
     habits.learn(values.nota, values.categoryId);
     return creado;
   };
 
   const handleUpdateExpense = async (values) => {
+    const origenId = values.fundingCategoryId || values.categoryId;
+    const origenAntes = editingExpense.funding_category_id || editingExpense.category_id;
+    if (origenId) {
+      await asegurarSaldo({
+        categoryId: origenId,
+        monto: values.monto,
+        // Al editar, lo que este mismo gasto ya sacaba de esa categoría vuelve a estar disponible.
+        saldoExtra: origenAntes === origenId ? Number(editingExpense.monto) : 0,
+        motivo: values.nota || 'un gasto',
+      });
+    }
     const actualizado = await updateExpense(editingExpense.id, values);
     habits.learn(values.nota, values.categoryId);
     return actualizado;
+  };
+
+  // Presupuesto semanal: lo que te toca esta semana debe estar en la categoría.
+  const mensajePresupuesto = (categoryId, monto) => ({ saldo, faltante }) => {
+    const nombre = allCategories.find((c) => c.id === categoryId)?.nombre ?? 'la categoría';
+    return `Para tener ${formatCurrency(Number(monto))} esta semana en ${nombre}, pero tiene ${formatCurrency(saldo)}: te faltan ${formatCurrency(faltante)}.`;
+  };
+  const handleCreateWeeklyPlan = async (valores) => {
+    await asegurarSaldo({
+      categoryId: valores.categoryId,
+      monto: valores.monto,
+      motivo: 'presupuesto semanal',
+      mensaje: mensajePresupuesto(valores.categoryId, valores.monto),
+    });
+    return createWeeklyPlan(valores);
+  };
+  const handleUpdateWeeklyPlan = async (valores) => {
+    if (valores.monto > Number(editingPlan.plan.monto_semanal)) {
+      await asegurarSaldo({
+        categoryId: editingPlan.category.id,
+        monto: valores.monto,
+        motivo: 'presupuesto semanal',
+        mensaje: mensajePresupuesto(editingPlan.category.id, valores.monto),
+      });
+    }
+    return updateWeeklyPlan(editingPlan.plan.id, valores);
   };
 
   const handleMarkDebtPaid = (debt) => setPayingDebt(debt);
@@ -875,7 +945,7 @@ export function Dashboard() {
       </Modal>
 
       <Modal open={showDebtModal} onClose={() => setShowDebtModal(false)} title="Deuda o préstamo">
-        <DebtForm categories={categories} saldoPorCategoria={saldoPorCategoria} onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
+        <DebtForm categories={categories} saldoPorCategoria={saldoPorCategoria} asegurarSaldo={asegurarSaldo} onSubmit={addDebt} onDone={() => setShowDebtModal(false)} />
       </Modal>
 
       <GlobalSearchModal
@@ -905,6 +975,7 @@ export function Dashboard() {
             goal={contributingGoal}
             categories={categories}
             saldoPorCategoria={saldoPorCategoria}
+            asegurarSaldo={asegurarSaldo}
             onSubmit={addContribution}
             onDone={() => setContributingGoal(null)}
           />
@@ -993,6 +1064,7 @@ export function Dashboard() {
             debt={editingDebt}
             categories={categories}
             saldoPorCategoria={saldoPorCategoria}
+            asegurarSaldo={asegurarSaldo}
             onSubmit={(valores) => updateDebt(editingDebt.id, valores)}
             onDone={() => setEditingDebt(null)}
           />
@@ -1005,6 +1077,7 @@ export function Dashboard() {
             debt={payingDebt}
             categories={categories}
             saldoPorCategoria={saldoPorCategoria}
+            asegurarSaldo={asegurarSaldo}
             onSubmit={(debt, opciones) => markDebtAsPaid(debt.id, opciones)}
             onDone={() => setPayingDebt(null)}
           />
@@ -1040,6 +1113,7 @@ export function Dashboard() {
         categories={categories}
         allCategories={allCategories}
         saldoPorCategoria={saldoPorCategoria}
+        asegurarSaldo={asegurarSaldo}
         onUpdate={updateContribution}
         onDelete={deleteContribution}
         onClose={() => setViewingGoal(null)}
@@ -1053,7 +1127,7 @@ export function Dashboard() {
             otrasCategorias={categories.filter((c) => c.id !== editingPlan.category.id)}
             plan={editingPlan.plan}
             minSemanas={Math.max(1, ...weeklyClosures.filter((c) => c.plan_id === editingPlan.plan.id).map((c) => c.semana_num))}
-            onSubmit={(valores) => updateWeeklyPlan(editingPlan.plan.id, valores)}
+            onSubmit={handleUpdateWeeklyPlan}
             onDone={() => setEditingPlan(null)}
           />
         )}
@@ -1083,7 +1157,7 @@ export function Dashboard() {
             category={weeklyPlanCategory}
             saldo={saldoPorCategoria[weeklyPlanCategory.id] || 0}
             otrasCategorias={categories.filter((c) => c.id !== weeklyPlanCategory.id)}
-            onSubmit={createWeeklyPlan}
+            onSubmit={handleCreateWeeklyPlan}
             onDone={() => setWeeklyPlanCategory(null)}
           />
         )}

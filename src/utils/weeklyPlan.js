@@ -53,6 +53,18 @@ const aportesEnRango = (aportes, categoryId, ini, fin) =>
 // Estado de un plan hoy. `closures` = cierres de ESE plan. Para semanas ya
 // cerradas se usa lo que guardó el proceso automático; si todavía no corrió
 // (ej. lunes muy temprano) se calcula igual con los gastos.
+// Lo disponible de la semana nunca puede ser más que la plata real que tiene la
+// categoría: si te "tocan" $20.000 pero hay $17.000, lo disponible es $17.000.
+export function limitarPorSaldo(semana, saldo) {
+  if (!semana || semana.estado !== 'activo') return semana;
+  return {
+    ...semana,
+    disponibleSinTope: semana.disponible,
+    disponible: Math.min(semana.disponible, saldo),
+    limitadoPorSaldo: semana.disponible > saldo,
+  };
+}
+
 export function calcularPlan(plan, closures, expenses, aportes = [], hoy = toISO(new Date())) {
   if (hoy < plan.fecha_inicio) return { estado: 'pendiente', inicio: plan.fecha_inicio };
 

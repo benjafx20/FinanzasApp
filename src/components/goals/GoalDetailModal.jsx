@@ -7,7 +7,7 @@ import { confirmar, alertar } from '../../utils/dialogs';
 
 // Historial de aportes de una meta: se puede corregir el monto y de dónde salió
 // la plata, o deshacer un aporte (la plata vuelve a su categoría).
-export function GoalDetailModal({ goal, contributions, categories, allCategories, saldoPorCategoria, onUpdate, onDelete, onClose }) {
+export function GoalDetailModal({ goal, contributions, categories, allCategories, saldoPorCategoria, asegurarSaldo, onUpdate, onDelete, onClose }) {
   const [editando, setEditando] = useState(null);
   const lista = goal
     ? contributions.filter((c) => c.goal_id === goal.id).sort((a, b) => b.fecha.localeCompare(a.fecha))
@@ -37,6 +37,7 @@ export function GoalDetailModal({ goal, contributions, categories, allCategories
             contribution={editando}
             categories={categories}
             saldoPorCategoria={saldoPorCategoria}
+            asegurarSaldo={asegurarSaldo}
             onSubmit={(_goalId, monto, origen) => onUpdate(editando.id, { monto, sourceCategoryId: origen })}
             onDone={() => setEditando(null)}
           />

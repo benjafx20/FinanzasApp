@@ -113,11 +113,7 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
         setError('Elige con qué categoría lo vas a pagar.');
         return;
       }
-      const saldoOrigen = saldosPorCategoria?.[fundingCategoryId] ?? 0;
-      if (Number(monto) > saldoOrigen) {
-        setError(`Esa categoría solo tiene ${formatCurrency(saldoOrigen)} disponibles.`);
-        return;
-      }
+      // Si no alcanza el saldo, al guardar se avisa y se pregunta de dónde sacar lo que falta.
     }
 
     setLoading(true);

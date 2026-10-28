@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { calcularPlan } from '../utils/weeklyPlan';
+import { calcularPlan, limitarPorSaldo } from '../utils/weeklyPlan';
 import { resumenSemanaPasada } from '../utils/weeklySummary';
 import { alertar, confirmar } from '../utils/dialogs';
 
 // Todo lo que la pantalla necesita del presupuesto semanal: el plan activo de
 // cada categoría, cómo va la semana en curso, y el resumen de la semana que
 // cerró el domingo (con su "Entendido").
-export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions = [], movimientosDeuda = [], stopWeeklyPlan }) {
+export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fundings, transfers, savingsContributions = [], movimientosDeuda = [], saldoPorCategoria = {}, stopWeeklyPlan }) {
   const planActivoPorCategoria = useMemo(() => {
     const map = {};
     for (const p of weeklyPlans) if (p.estado === 'activo') map[p.category_id] = p;
@@ -44,15 +44,18 @@ export function useWeeklyBudgetView({ weeklyPlans, weeklyClosures, expenses, fun
   const semanaPorCategoria = useMemo(() => {
     const map = {};
     for (const [categoryId, plan] of Object.entries(planActivoPorCategoria)) {
-      map[categoryId] = calcularPlan(
-        plan,
-        weeklyClosures.filter((c) => c.plan_id === plan.id),
-        salidas,
-        aportesParaSemana
+      map[categoryId] = limitarPorSaldo(
+        calcularPlan(
+          plan,
+          weeklyClosures.filter((c) => c.plan_id === plan.id),
+          salidas,
+          aportesParaSemana
+        ),
+        saldoPorCategoria[categoryId] || 0
       );
     }
     return map;
-  }, [planActivoPorCategoria, weeklyClosures, salidas, aportesParaSemana]);
+  }, [planActivoPorCategoria, weeklyClosures, salidas, aportesParaSemana, saldoPorCategoria]);
 
   // Resumen de la semana que cerró el domingo; se oculta con "Entendido" y
   // vuelve a aparecer solo cuando cierra otra semana.

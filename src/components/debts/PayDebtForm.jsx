@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { confirmar } from '../../utils/dialogs';
 
 const NINGUNA = '__ninguna__';
 
 // Saldar una deuda. En un préstamo: ¿a qué categoría entró lo que te devolvieron?
 // En una deuda tuya: ¿de qué categoría sacaste para pagar?
-export function PayDebtForm({ debt, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
+export function PayDebtForm({ debt, categories = [], saldoPorCategoria = {}, asegurarSaldo, onSubmit, onDone }) {
   const [categoryId, setCategoryId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,14 +18,12 @@ export function PayDebtForm({ debt, categories = [], saldoPorCategoria = {}, onS
     setError('');
     if (!categoryId) return setError('Elige una categoría, o "No mover plata".');
     const categoria = categoryId !== NINGUNA ? categories.find((c) => c.id === categoryId) : null;
-    if (!esPrestamo && categoria) {
-      const saldo = saldoPorCategoria[categoria.id] || 0;
-      if (monto > saldo) {
-        const seguir = await confirmar(
-          `${categoria.nombre} tiene ${formatCurrency(saldo)} y vas a sacar ${formatCurrency(monto)}. Quedará en ${formatCurrency(saldo - monto)}. ¿Continuar?`,
-          { titulo: 'No alcanza el saldo' }
-        );
-        if (!seguir) return;
+    if (!esPrestamo && categoria && asegurarSaldo) {
+      try {
+        await asegurarSaldo({ categoryId: categoria.id, monto, motivo: `pago de deuda a ${debt.persona}` });
+      } catch (err) {
+        if (err.message) setError(err.message);
+        return;
       }
     }
     setLoading(true);

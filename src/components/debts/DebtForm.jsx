@@ -5,7 +5,6 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { confirmar } from '../../utils/dialogs';
 import './DebtForm.css';
 
 const NINGUNA = '__ninguna__';
@@ -13,7 +12,7 @@ const NINGUNA = '__ninguna__';
 // Con `debt` edita una deuda existente (el tipo no se puede cambiar).
 // En un préstamo se elige de qué categoría sale la plata, o "No descontar"
 // si solo se quiere dejar registrado.
-export function DebtForm({ debt, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
+export function DebtForm({ debt, categories = [], saldoPorCategoria = {}, asegurarSaldo, onSubmit, onDone }) {
   const editando = !!debt;
   const [tipo, setTipo] = useState(debt?.tipo || 'prestado');
   const [persona, setPersona] = useState(debt?.persona || '');
@@ -33,14 +32,17 @@ export function DebtForm({ debt, categories = [], saldoPorCategoria = {}, onSubm
 
     const montoNum = Number(monto);
     const categoria = tipo === 'prestado' && origen !== NINGUNA ? categories.find((c) => c.id === origen) : null;
-    if (categoria) {
-      const disponible = (saldoPorCategoria[categoria.id] || 0) + (editando && debt.source_category_id === origen ? Number(debt.monto) : 0);
-      if (montoNum > disponible) {
-        const seguir = await confirmar(
-          `${categoria.nombre} tiene ${formatCurrency(disponible)} y vas a sacar ${formatCurrency(montoNum)}. Quedará en ${formatCurrency(disponible - montoNum)}. ¿Continuar?`,
-          { titulo: 'No alcanza el saldo' }
-        );
-        if (!seguir) return;
+    if (categoria && asegurarSaldo) {
+      try {
+        await asegurarSaldo({
+          categoryId: categoria.id,
+          monto: montoNum,
+          saldoExtra: editando && debt.source_category_id === origen ? Number(debt.monto) : 0,
+          motivo: `préstamo a ${persona.trim()}`,
+        });
+      } catch (err) {
+        if (err.message) setError(err.message);
+        return;
       }
     }
 

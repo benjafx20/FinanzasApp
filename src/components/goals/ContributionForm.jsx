@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { confirmar } from '../../utils/dialogs';
 
 const DE_AFUERA = '__afuera__';
 
 // El aporte a una meta sale del saldo de una categoría (así la plata no queda
 // contada dos veces). Si es plata que no está en la app, se elige "de afuera".
 // Con `contribution` corrige un aporte existente.
-export function ContributionForm({ goal, contribution, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
+export function ContributionForm({ goal, contribution, categories = [], saldoPorCategoria = {}, asegurarSaldo, onSubmit, onDone }) {
   const editando = !!contribution;
   const [monto, setMonto] = useState(contribution ? String(contribution.monto) : '');
   // Un aporte antiguo no tiene origen: se obliga a elegir para que quede claro.
@@ -28,13 +27,13 @@ export function ContributionForm({ goal, contribution, categories = [], saldoPor
     const categoria = categories.find((c) => c.id === origen);
     // Al corregir un aporte, lo que ya había sacado de esa categoría vuelve a estar disponible.
     const yaSacado = editando && contribution.source_category_id === origen ? Number(contribution.monto) : 0;
-    const saldo = categoria ? (saldoPorCategoria[categoria.id] || 0) + yaSacado : 0;
-    if (categoria && montoNum > saldo) {
-      const seguir = await confirmar(
-        `${categoria.nombre} tiene ${formatCurrency(saldo)} y vas a sacar ${formatCurrency(montoNum)}. Quedará en ${formatCurrency(saldo - montoNum)}. ¿Continuar?`,
-        { titulo: 'No alcanza el saldo' }
-      );
-      if (!seguir) return;
+    if (categoria && asegurarSaldo) {
+      try {
+        await asegurarSaldo({ categoryId: categoria.id, monto: montoNum, saldoExtra: yaSacado, motivo: `aporte a "${goal.nombre}"` });
+      } catch (err) {
+        if (err.message) setError(err.message);
+        return;
+      }
     }
     setLoading(true);
     try {
