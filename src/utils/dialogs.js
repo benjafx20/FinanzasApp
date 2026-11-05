@@ -15,7 +15,8 @@ export function registerDialogHost(fn) {
 function abrir(config) {
   return new Promise((resolve) => {
     if (!host) {
-      if (config.tipo === 'cubrir') resolve(window.confirm(`${config.mensaje}\n\n¿Continuar igual?`) ? { accion: 'negativo' } : null);
+      if (config.tipo === 'texto') resolve(window.prompt(config.mensaje, config.valorInicial));
+      else if (config.tipo === 'cubrir') resolve(window.confirm(`${config.mensaje}\n\n¿Continuar igual?`) ? { accion: 'negativo' } : null);
       else if (config.tipo === 'confirm') resolve(window.confirm(config.mensaje));
       else {
         window.alert(config.mensaje);
@@ -32,6 +33,11 @@ function abrir(config) {
 // (seguir igual, quedando en negativo) o null (cancelar).
 export function cubrirFaltante({ mensaje, faltante, opciones, titulo = 'No alcanza la plata' }) {
   return abrir({ tipo: 'cubrir', mensaje, faltante, opciones, titulo });
+}
+
+// Pide un texto (por ejemplo, un nombre nuevo). Devuelve el texto, o null si se cancela.
+export function pedirTexto({ titulo, mensaje = '', valorInicial = '', textoConfirmar = 'Guardar', maxLength = 60 }) {
+  return abrir({ tipo: 'texto', titulo, mensaje, valorInicial, textoConfirmar, maxLength });
 }
 
 export function alertar(mensaje, titulo = 'Aviso') {

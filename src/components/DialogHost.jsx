@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import { registerDialogHost } from '../utils/dialogs';
 import { formatCurrency } from '../utils/formatCurrency';
 
@@ -42,6 +43,29 @@ function CubrirFaltante({ dialogo, onResolve }) {
   );
 }
 
+// Pide un texto: por ejemplo el nombre nuevo de un grupo.
+function PedirTexto({ dialogo, onResolve }) {
+  const [valor, setValor] = useState(dialogo.valorInicial || '');
+  return (
+    <form
+      className="expense-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onResolve(valor);
+      }}
+    >
+      {dialogo.mensaje && <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{dialogo.mensaje}</p>}
+      <Input id="dialogo-texto" type="text" value={valor} onChange={(e) => setValor(e.target.value)} maxLength={dialogo.maxLength} autoFocus />
+      <Button type="submit" fullWidth disabled={!valor.trim()}>
+        {dialogo.textoConfirmar}
+      </Button>
+      <Button type="button" variant="ghost" fullWidth onClick={() => onResolve(null)}>
+        Cancelar
+      </Button>
+    </form>
+  );
+}
+
 // Dibuja los avisos y confirmaciones pedidos con alertar() / confirmar() /
 // cubrirFaltante(). Si se piden varios seguidos, se muestran de uno en uno.
 export function DialogHost() {
@@ -57,14 +81,15 @@ export function DialogHost() {
   const alCerrarConX = () => {
     if (!actual) return;
     if (actual.tipo === 'confirm') cerrar(false);
-    else if (actual.tipo === 'cubrir') cerrar(null);
+    else if (actual.tipo === 'cubrir' || actual.tipo === 'texto') cerrar(null);
     else cerrar(undefined);
   };
 
   return (
     <Modal open={!!actual} onClose={alCerrarConX} title={actual?.titulo || ''}>
       {actual?.tipo === 'cubrir' && <CubrirFaltante key={cola.length} dialogo={actual} onResolve={cerrar} />}
-      {actual && actual.tipo !== 'cubrir' && (
+      {actual?.tipo === 'texto' && <PedirTexto key={cola.length} dialogo={actual} onResolve={cerrar} />}
+      {actual && actual.tipo !== 'cubrir' && actual.tipo !== 'texto' && (
         <div className="expense-form">
           <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{actual.mensaje}</p>
           {actual.tipo === 'confirm' ? (

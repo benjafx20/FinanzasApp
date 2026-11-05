@@ -9,3 +9,8 @@ export function etiquetasDe(items, categoryId) {
     ),
   ];
 }
+
+// Cambia el nombre de un grupo ("agrupar como") en los gastos o aportes de una categoría.
+export function renombrarEtiqueta(items, categoryId, de, a) {
+  return items.map((x) => (x.category_id === categoryId && x.etiqueta === de ? { ...x, etiqueta: a } : x));
+}

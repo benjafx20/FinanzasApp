@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAllPages } from '../lib/fetchAll';
+import { renombrarEtiqueta } from '../utils/etiquetas';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 import { getPendingExpenses, queuePendingExpense, removePendingExpense, updatePendingExpense } from '../utils/offlineQueue';
 import { guardarBoleta, obtenerBoleta, vincularBoleta, borrarBoleta, boletasVinculadas } from '../utils/receiptOutbox';
@@ -239,5 +240,16 @@ export function useExpenses(userId) {
     if (gasto?.receipt_path) supabase.storage.from('receipts').remove([gasto.receipt_path]);
   }, [userId, expenses]);
 
-  return { expenses, loading, error, addExpense, updateExpense, deleteExpense, refetch: fetchExpenses, syncPendingExpenses };
+  // Cambia el nombre de un grupo en todos los gastos de una categoría.
+  const renameEtiqueta = useCallback(async (categoryId, de, a) => {
+    const { error: updateError } = await supabase
+      .from('expenses')
+      .update({ etiqueta: a })
+      .eq('category_id', categoryId)
+      .eq('etiqueta', de);
+    if (updateError) throw new Error('No se pudo cambiar el nombre en los gastos.');
+    setExpenses((prev) => renombrarEtiqueta(prev, categoryId, de, a));
+  }, []);
+
+  return { expenses, loading, error, addExpense, updateExpense, deleteExpense, renameEtiqueta, refetch: fetchExpenses, syncPendingExpenses };
 }

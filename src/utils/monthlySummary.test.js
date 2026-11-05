@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMonthlySummary } from './monthlySummary';
+import { buildMonthlySummary, resumenAutomaticoPendiente } from './monthlySummary';
 
 const categories = [{ id: 'a', nombre: 'Comida' }, { id: 'b', nombre: 'Bencina' }];
 const base = {
@@ -52,5 +52,26 @@ describe('buildMonthlySummary', () => {
       debts: [{ tipo: 'prestado', monto: 10000, fecha: '2026-10-06', pagado: false, source_category_id: 'a' }],
     });
     expect(r.balanceAlCierre).toBe(60000);
+  });
+});
+
+describe('resumenAutomaticoPendiente', () => {
+  it('muestra el resumen del mes anterior si tiene movimientos y no se vio', () => {
+    expect(resumenAutomaticoPendiente({ monthKey: '2026-11', closedMonths: ['2026-10', '2026-09'], yaVisto: null })).toBe('2026-10');
+  });
+  it('no lo vuelve a mostrar una vez visto', () => {
+    expect(resumenAutomaticoPendiente({ monthKey: '2026-11', closedMonths: ['2026-10'], yaVisto: '2026-10' })).toBeNull();
+  });
+  it('no muestra nada si el mes anterior no tuvo movimientos, aunque haya meses más viejos', () => {
+    expect(resumenAutomaticoPendiente({ monthKey: '2026-11', closedMonths: ['2026-08'], yaVisto: null })).toBeNull();
+  });
+  it('no se reabre aunque los datos carguen por partes (el último mes con datos cambia)', () => {
+    const yaVisto = '2026-10';
+    // Primero llegan solo los datos más viejos, después el resto: nunca vuelve a saltar.
+    expect(resumenAutomaticoPendiente({ monthKey: '2026-11', closedMonths: ['2026-09'], yaVisto })).toBeNull();
+    expect(resumenAutomaticoPendiente({ monthKey: '2026-11', closedMonths: ['2026-10', '2026-09'], yaVisto })).toBeNull();
+  });
+  it('en enero, el mes anterior es diciembre del año pasado', () => {
+    expect(resumenAutomaticoPendiente({ monthKey: '2027-01', closedMonths: ['2026-12'], yaVisto: null })).toBe('2026-12');
   });
 });

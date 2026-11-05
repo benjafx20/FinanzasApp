@@ -3,13 +3,23 @@ import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Button } from '../ui/Button';
 import { hoyISO } from '../../utils/dates';
+import { formatCurrency } from '../../utils/formatCurrency';
+
+const DE_AFUERA = '__afuera__';
 
 // Con `goal` edita una meta existente; sin él, crea una nueva.
-export function GoalForm({ goal, onSubmit, onDone }) {
+// Al editar también se puede cambiar cuánto llevas ahorrado (`ahorrado`): si sube, hay
+// que decir de dónde sale la plata; si baja, se deshacen los aportes más recientes.
+export function GoalForm({ goal, ahorrado = 0, categories = [], saldoPorCategoria = {}, onSubmit, onDone }) {
   const [nombre, setNombre] = useState(goal?.nombre || '');
   const [montoObjetivo, setMontoObjetivo] = useState(goal ? String(goal.monto_objetivo) : '');
   const [fechaObjetivo, setFechaObjetivo] = useState(goal?.fecha_objetivo || '');
   const cerrada = !!goal?.completed_at;
+  const [ahorradoNuevo, setAhorradoNuevo] = useState(goal ? String(Math.round(ahorrado)) : '');
+  const [origen, setOrigen] = useState('');
+  const ahorradoNum = Number(ahorradoNuevo) || 0;
+  const sube = !!goal && ahorradoNum > Math.round(ahorrado);
+  const baja = !!goal && ahorradoNum < Math.round(ahorrado);
   const [usedFor, setUsedFor] = useState(goal?.used_for || '');
   const [usedAt, setUsedAt] = useState(goal?.used_at || hoyISO());
   const [error, setError] = useState('');
@@ -18,6 +28,10 @@ export function GoalForm({ goal, onSubmit, onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (sube && !origen) {
+      setError('Elige de dónde sacaste la plata que sumaste.');
+      return;
+    }
     setLoading(true);
     try {
       await onSubmit({
@@ -25,6 +39,7 @@ export function GoalForm({ goal, onSubmit, onDone }) {
         montoObjetivo,
         fechaObjetivo: fechaObjetivo || null,
         ...(cerrada ? { usedFor, usedAt } : {}),
+        ...(goal && (sube || baja) ? { ahorradoNuevo: ahorradoNum, origenAhorro: origen === DE_AFUERA ? null : origen } : {}),
       });
       onDone();
     } catch (err) {
@@ -61,6 +76,36 @@ export function GoalForm({ goal, onSubmit, onDone }) {
         value={fechaObjetivo}
         onChange={(e) => setFechaObjetivo(e.target.value)}
       />
+      {goal && (
+        <>
+          <CurrencyInput
+            id="goal-ahorrado"
+            label="Cantidad ahorrada hasta ahora"
+            value={ahorradoNuevo}
+            onChange={setAhorradoNuevo}
+            placeholder="0"
+          />
+          {sube && (
+            <div className="input-group">
+              <label className="input-label" htmlFor="goal-origen">¿De dónde sacaste esa plata?</label>
+              <select id="goal-origen" className="input" value={origen} onChange={(e) => setOrigen(e.target.value)} required>
+                <option value="">Elige una categoría…</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre} ({formatCurrency(saldoPorCategoria[c.id] || 0)})
+                  </option>
+                ))}
+                <option value={DE_AFUERA}>Plata de afuera (no descontar de ninguna)</option>
+              </select>
+            </div>
+          )}
+          {baja && (
+            <p className="dashboard__empty">
+              Se deshacen los aportes más recientes hasta llegar a ese monto, y la plata vuelve a la categoría de donde salió.
+            </p>
+          )}
+        </>
+      )}
       {cerrada && (
         <>
           <Input

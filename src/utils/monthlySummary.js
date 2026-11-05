@@ -19,6 +19,16 @@ export function mesAnteriorA(monthKey) {
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
 }
 
+// Qué resumen mostrar solo al abrir la app: únicamente el del mes calendario
+// inmediatamente anterior (el "recién cerrado"), y solo si tiene movimientos y no
+// se mostró ya. Depende de ese mes y no de "el último mes con datos", porque si los
+// datos cargan por partes ese último mes cambia y el resumen se reabría solo.
+export function resumenAutomaticoPendiente({ monthKey, closedMonths, yaVisto }) {
+  const mes = mesAnteriorA(monthKey);
+  if (!closedMonths.includes(mes) || yaVisto === mes) return null;
+  return mes;
+}
+
 // Todos los meses con algún movimiento (gasto, aporte, traspaso o ahorro),
 // sin contar el mes actual (ese no está "cerrado" todavía), del más
 // reciente al más antiguo.

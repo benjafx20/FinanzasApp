@@ -22,6 +22,7 @@ export function CategoryDetailModal({
   semana,
   nombreCategoriaSobrante,
   onActivarPresupuesto,
+  onRenameGroup,
   esInventario,
   equipos = [],
   onToggleInventario,
@@ -284,6 +285,18 @@ export function CategoryDetailModal({
               <span>Ingresado: <strong><Amount value={grupoSeleccionado.ingresado} /></strong></span>
               <span>Ganancia: <strong><Amount value={grupoSeleccionado.ingresado - grupoSeleccionado.gastado} /></strong></span>
             </div>
+          )}
+          {grupoSeleccionado && onRenameGroup && (
+            <button
+              type="button"
+              className="category-detail__show-more"
+              onClick={async () => {
+                const nuevo = await onRenameGroup(grupoSeleccionado.nombre);
+                if (nuevo) setGrupoActivo(nuevo);
+              }}
+            >
+              Cambiar nombre de este grupo
+            </button>
           )}
         </div>
       )}

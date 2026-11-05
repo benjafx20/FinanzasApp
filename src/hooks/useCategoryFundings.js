@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAllPages } from '../lib/fetchAll';
+import { renombrarEtiqueta } from '../utils/etiquetas';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
 
 export function useCategoryFundings(userId) {
@@ -141,5 +142,16 @@ export function useCategoryFundings(userId) {
     return map;
   }, [fundings]);
 
-  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFunding, deleteFunding, deleteFundingsByIncome, totalPorCategoria, refetch: fetchFundings };
+  // Cambia el nombre de un grupo en todos los aportes de una categoría.
+  const renameEtiqueta = useCallback(async (categoryId, de, a) => {
+    const { error: updateError } = await supabase
+      .from('category_fundings')
+      .update({ etiqueta: a })
+      .eq('category_id', categoryId)
+      .eq('etiqueta', de);
+    if (updateError) throw new Error('No se pudo cambiar el nombre en los aportes.');
+    setFundings((prev) => renombrarEtiqueta(prev, categoryId, de, a));
+  }, []);
+
+  return { fundings, loading, error, addManualFunding, addIncomeFundings, updateFunding, deleteFunding, deleteFundingsByIncome, renameEtiqueta, totalPorCategoria, refetch: fetchFundings };
 }

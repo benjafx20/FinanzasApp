@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { planearAjusteAhorro } from '../utils/goalAdjust';
 import { calcularFaltante, opcionesParaCubrir } from '../utils/shortfall';
 import { formatCurrency } from '../utils/formatCurrency';
 import { calcularSaldos } from '../utils/balances';
@@ -6,7 +7,7 @@ import { InventoryAlert } from '../components/inventory/InventoryAlert';
 import { equiposSinVender } from '../utils/inventory';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { useMerchantHabits } from '../hooks/useMerchantHabits';
-import { alertar, confirmar, cubrirFaltante } from '../utils/dialogs';
+import { alertar, confirmar, cubrirFaltante, pedirTexto } from '../utils/dialogs';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useExpenses } from '../hooks/useExpenses';
@@ -55,7 +56,7 @@ import { OfflineBanner } from '../components/layout/OfflineBanner';
 import { Modal } from '../components/ui/Modal';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { MonthlySummaryModal } from '../components/summary/MonthlySummaryModal';
-import { getClosedMonths } from '../utils/monthlySummary';
+import { getClosedMonths, resumenAutomaticoPendiente } from '../utils/monthlySummary';
 import { DebtsSection } from '../components/debts/DebtsSection';
 import { DebtForm } from '../components/debts/DebtForm';
 import { PayDebtForm } from '../components/debts/PayDebtForm';
@@ -135,6 +136,7 @@ export function Dashboard() {
     addExpense,
     updateExpense,
     deleteExpense,
+    renameEtiqueta: renameEtiquetaGastos,
     refetch: refetchExpenses,
     syncPendingExpenses,
   } = useExpenses(user?.id);
@@ -152,6 +154,7 @@ export function Dashboard() {
     updateFunding,
     deleteFunding,
     deleteFundingsByIncome,
+    renameEtiqueta: renameEtiquetaAportes,
     refetch: refetchFundings,
   } = useCategoryFundings(user?.id);
   const {
@@ -290,32 +293,24 @@ export function Dashboard() {
     [expenses, fundings, transfers, savingsContributions, debts, monthKey]
   );
 
-  // Al abrir la app en un mes nuevo, muestra una sola vez el resumen del
-  // mes recién cerrado. Se guarda en localStorage cuál fue el último que
-  // ya se mostró, para no insistir cada vez que se abre la app.
+  // Al abrir la app en un mes nuevo, muestra una sola vez el resumen del mes recién
+  // cerrado (el mes anterior). Se guarda en localStorage cuál ya se mostró.
   useEffect(() => {
-    if (closedMonths.length === 0) return;
-    const ultimoMes = closedMonths[0];
     let yaVisto = null;
     try {
       yaVisto = localStorage.getItem('finanzas_resumen_mes_visto');
     } catch {
-      // Sin localStorage, simplemente no se auto-muestra; sigue disponible
-      // a mano desde el botón de resumen mensual.
+      // Sin localStorage no se auto-muestra; sigue disponible desde el botón de resumen mensual.
     }
-    if (yaVisto !== ultimoMes) {
-      setSummaryModal({ initialMonthKey: ultimoMes });
-      try {
-        localStorage.setItem('finanzas_resumen_mes_visto', ultimoMes);
-      } catch {
-        // Idem — si falla, se podría volver a mostrar la próxima vez, no
-        // es grave.
-      }
+    const mes = resumenAutomaticoPendiente({ monthKey, closedMonths, yaVisto });
+    if (!mes) return;
+    try {
+      localStorage.setItem('finanzas_resumen_mes_visto', mes);
+    } catch {
+      // Si falla, se podría volver a mostrar la próxima vez; no es grave.
     }
-    // Solo debe correr cuando cambia la lista de meses cerrados (ej: al
-    // cargar los datos por primera vez), no cada vez que se re-renderiza.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closedMonths]);
+    setSummaryModal({ initialMonthKey: mes });
+  }, [closedMonths, monthKey]);
 
   const expensesDeCategoriaEnDetalle = useMemo(() => {
     if (!viewingCategory) return [];
@@ -413,6 +408,35 @@ export function Dashboard() {
 
   // Cerrar una meta: la plata ahorrada se da por usada (sigue descontada de las
   // categorías de donde salió). Reabrirla permite eliminarla y recuperar la plata.
+  // Editar una meta: nombre, objetivo y fecha, y también cuánto llevas ahorrado. Cambiar
+  // lo ahorrado agrega un aporte (si sube) o deshace los más recientes (si baja).
+  const handleEditGoal = async (goal, valores) => {
+    const { ahorradoNuevo, origenAhorro, ...datos } = valores;
+    const aportes = savingsContributions.filter((c) => c.goal_id === goal.id);
+    const plan = ahorradoNuevo === undefined ? { diff: 0, operaciones: [] } : planearAjusteAhorro({ aportes, nuevoTotal: ahorradoNuevo });
+
+    if (plan.diff < 0) {
+      const seguir = await confirmar(
+        `Vas a bajar lo ahorrado en "${goal.nombre}" en ${formatCurrency(-plan.diff)}. Se deshacen los aportes más recientes y esa plata vuelve a las categorías de donde salió. ¿Continuar?`,
+        { titulo: 'Bajar lo ahorrado' }
+      );
+      if (!seguir) throw new Error('');
+    }
+    if (plan.diff > 0 && origenAhorro) {
+      await asegurarSaldo({ categoryId: origenAhorro, monto: plan.diff, motivo: `ahorro de "${goal.nombre}"` });
+    }
+
+    await updateGoal(goal.id, datos);
+    for (const op of plan.operaciones) {
+      if (op.tipo === 'agregar') await addContribution(goal.id, op.monto, origenAhorro);
+      else if (op.tipo === 'borrar') await deleteContribution(op.id);
+      else {
+        const original = aportes.find((a) => a.id === op.id);
+        await updateContribution(op.id, { monto: op.monto, sourceCategoryId: original?.source_category_id });
+      }
+    }
+  };
+
   const handleCloseGoal = (goal) => setClosingGoal(goal);
 
   const handleReopenGoal = async (goal) => {
@@ -424,8 +448,6 @@ export function Dashboard() {
     }
   };
 
-  // Guardar un gasto también le enseña a la app qué categoría usas con ese comercio
-  // (la nota). Aprender nunca debe impedir que el gasto se guarde.
   // Si una categoría no tiene plata suficiente para lo que vas a hacer, avisa y deja
   // elegir de qué otra categoría sacar lo que falta. Eso se registra como un
   // movimiento de plata (queda en el historial). Cancelar corta la operación sin
@@ -450,6 +472,37 @@ export function Dashboard() {
         monto: faltante,
         nota: `Para cubrir: ${motivo}`,
       });
+    }
+  };
+
+  // Cambia el nombre de un grupo (ej. de un celular) en TODOS sus gastos y aportes de
+  // la categoría. Si ya existe otro grupo con ese nombre, se juntan. Devuelve el
+  // nombre nuevo, o null si se canceló o falló.
+  const handleRenameGroup = async (categoryId, nombreActual) => {
+    const entrada = await pedirTexto({
+      titulo: 'Cambiar nombre del grupo',
+      mensaje: `Nuevo nombre para "${nombreActual}". Se cambia en todos sus gastos e ingresos.`,
+      valorInicial: nombreActual,
+    });
+    const nuevo = entrada?.trim();
+    if (!nuevo || nuevo === nombreActual) return null;
+
+    const yaExiste = etiquetasConocidas(categoryId).includes(nuevo);
+    if (yaExiste && !(await confirmar(`Ya existe un grupo llamado "${nuevo}". Si sigues, los dos se juntan en uno solo. ¿Continuar?`))) {
+      return null;
+    }
+    try {
+      await renameEtiquetaGastos(categoryId, nombreActual, nuevo);
+      try {
+        await renameEtiquetaAportes(categoryId, nombreActual, nuevo);
+      } catch (err) {
+        await renameEtiquetaGastos(categoryId, nuevo, nombreActual); // deja todo como estaba
+        throw err;
+      }
+      return nuevo;
+    } catch (err) {
+      await alertar(err.message);
+      return null;
     }
   };
 
@@ -934,7 +987,10 @@ export function Dashboard() {
         {editingGoal && (
           <GoalForm
             goal={editingGoal}
-            onSubmit={(valores) => updateGoal(editingGoal.id, valores)}
+            ahorrado={totalByGoal(editingGoal.id)}
+            categories={categories}
+            saldoPorCategoria={saldoPorCategoria}
+            onSubmit={(valores) => handleEditGoal(editingGoal, valores)}
             onDone={() => setEditingGoal(null)}
           />
         )}
@@ -1187,6 +1243,7 @@ export function Dashboard() {
               setWeeklyPlanCategory(viewingCategory);
               setViewingCategory(null);
             }}
+            onRenameGroup={(nombre) => handleRenameGroup(viewingCategory.id, nombre)}
             esInventario={!!allCategories.find((c) => c.id === viewingCategory.id)?.es_inventario}
             equipos={equiposPorCategoria[viewingCategory.id] || []}
             onToggleInventario={(valor) => categoriesHook.setInventario(viewingCategory.id, valor).catch((err) => alertar(err.message))}
