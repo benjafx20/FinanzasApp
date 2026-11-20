@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { useInventoryStatus } from '../hooks/useInventoryStatus';
 import { planearAjusteAhorro } from '../utils/goalAdjust';
 import { calcularFaltante, opcionesParaCubrir } from '../utils/shortfall';
 import { formatCurrency } from '../utils/formatCurrency';
 import { calcularSaldos } from '../utils/balances';
 import { InventoryAlert } from '../components/inventory/InventoryAlert';
-import { equiposSinVender } from '../utils/inventory';
+import { equiposSinVender, pendientes, descartados } from '../utils/inventory';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { useMerchantHabits } from '../hooks/useMerchantHabits';
 import { alertar, confirmar, cubrirFaltante, pedirTexto } from '../utils/dialogs';
@@ -91,6 +92,7 @@ export function Dashboard() {
   const [editingIncome, setEditingIncome] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const habits = useMerchantHabits(user?.id);
+  const inventoryStatus = useInventoryStatus(user?.id);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [closingGoal, setClosingGoal] = useState(null);
@@ -327,20 +329,34 @@ export function Dashboard() {
   const equiposPorCategoria = useMemo(() => {
     const map = {};
     for (const cat of allCategories) {
-      if (cat.es_inventario) map[cat.id] = equiposSinVender({ categoryId: cat.id, expenses, fundings });
+      if (cat.es_inventario) {
+        map[cat.id] = equiposSinVender({ categoryId: cat.id, expenses, fundings, estados: inventoryStatus.estados });
+      }
     }
     return map;
-  }, [allCategories, expenses, fundings]);
+  }, [allCategories, expenses, fundings, inventoryStatus.estados]);
   const equiposAtrasados = useMemo(
     () =>
       allCategories
         .filter((c) => c.es_inventario)
-        .flatMap((c) => (equiposPorCategoria[c.id] || []).filter((e) => e.atrasado).map((e) => ({ ...e, categoria: c }))),
+        .flatMap((c) => (equiposPorCategoria[c.id] || []).filter((e) => !e.estado && e.atrasado).map((e) => ({ ...e, categoria: c }))),
     [allCategories, equiposPorCategoria]
   );
 
   // Grupos ("agrupar como") ya usados, para sugerirlos en los formularios.
   const etiquetasConocidas = (categoryId) => etiquetasDe([...expenses, ...fundings], categoryId);
+
+  // Sugerencias de grupo al escribir un gasto o una venta. En categorías de inventario
+  // (celulares) solo se ofrecen los equipos que siguen sin vender, no los ya vendidos
+  // ni los que quedaron para repuestos o dados por pérdida.
+  const sugerenciasDeGrupos = (categoryId) => {
+    const sinVender = (id) => pendientes(equiposPorCategoria[id] || []).map((e) => e.nombre);
+    const esInventario = (id) => !!allCategories.find((c) => c.id === id)?.es_inventario;
+    if (categoryId) return esInventario(categoryId) ? sinVender(categoryId) : etiquetasConocidas(categoryId);
+    const deOtras = etiquetasDe([...expenses, ...fundings].filter((x) => !esInventario(x.category_id)));
+    const deInventario = allCategories.filter((c) => c.es_inventario).flatMap((c) => sinVender(c.id));
+    return [...new Set([...deOtras, ...deInventario])];
+  };
 
   const {
     planActivoPorCategoria,
@@ -499,6 +515,7 @@ export function Dashboard() {
         await renameEtiquetaGastos(categoryId, nuevo, nombreActual); // deja todo como estaba
         throw err;
       }
+      await inventoryStatus.renombrar(categoryId, nombreActual, nuevo).catch(() => {});
       return nuevo;
     } catch (err) {
       await alertar(err.message);
@@ -933,6 +950,7 @@ export function Dashboard() {
               defaultCategoryId={presetExpenseCategoryId}
               saldosPorCategoria={saldoPorCategoria}
               lookupHabit={habits.lookup}
+              sugerirGrupos={sugerenciasDeGrupos}
               onSubmit={handleAddExpense}
               onDone={closeNewRecordModal}
               categoryManagement={categoryManagement}
@@ -941,7 +959,7 @@ export function Dashboard() {
         ) : (
           <IncomeForm
             categories={categories}
-            etiquetasSugeridas={etiquetasConocidas()}
+            etiquetasSugeridas={sugerenciasDeGrupos()}
             onSubmit={handleAddIncome}
             onDone={closeNewRecordModal}
           />
@@ -956,6 +974,7 @@ export function Dashboard() {
             expense={editingExpense}
             saldosPorCategoria={saldoPorCategoria}
             lookupHabit={habits.lookup}
+              sugerirGrupos={sugerenciasDeGrupos}
             onSubmit={handleUpdateExpense}
             onDone={() => setEditingExpense(null)}
             categoryManagement={categoryManagement}
@@ -1069,7 +1088,7 @@ export function Dashboard() {
         {fundingCategory && (
           <AddFundingForm
             category={fundingCategory}
-            etiquetasSugeridas={etiquetasConocidas(fundingCategory.id)}
+            etiquetasSugeridas={sugerenciasDeGrupos(fundingCategory.id)}
             onSubmit={handleAddFunding}
             onDone={() => setFundingCategory(null)}
           />
@@ -1102,7 +1121,7 @@ export function Dashboard() {
         fundings={fundings}
         allCategories={allCategories}
         saldoPorCategoria={saldoPorCategoria}
-        etiquetasSugeridas={editingFunding ? etiquetasConocidas(editingFunding.category_id) : []}
+        etiquetasSugeridas={editingFunding ? sugerenciasDeGrupos(editingFunding.category_id) : []}
         onSubmit={(cambios) => updateFunding(editingFunding.id, cambios)}
       />
 
@@ -1199,7 +1218,7 @@ export function Dashboard() {
               income={distributingIncome}
               restante={Math.max(0, Number(distributingIncome.monto) - repartido)}
               categories={categories}
-              etiquetasSugeridas={etiquetasConocidas()}
+              etiquetasSugeridas={sugerenciasDeGrupos()}
               onSubmit={(reparto, etiqueta) => addIncomeFundings(distributingIncome.id, reparto, etiqueta)}
               onDone={() => setDistributingIncome(null)}
             />
@@ -1245,7 +1264,11 @@ export function Dashboard() {
             }}
             onRenameGroup={(nombre) => handleRenameGroup(viewingCategory.id, nombre)}
             esInventario={!!allCategories.find((c) => c.id === viewingCategory.id)?.es_inventario}
-            equipos={equiposPorCategoria[viewingCategory.id] || []}
+            equipos={pendientes(equiposPorCategoria[viewingCategory.id] || [])}
+            descartados={descartados(equiposPorCategoria[viewingCategory.id] || [])}
+            onMarcarEquipo={(nombre, estado) =>
+              inventoryStatus.setEstado(viewingCategory.id, nombre, estado).catch((err) => alertar(err.message))
+            }
             onToggleInventario={(valor) => categoriesHook.setInventario(viewingCategory.id, valor).catch((err) => alertar(err.message))}
             onEditarPresupuesto={(plan) => {
               setEditingPlan({ category: viewingCategory, plan });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { equiposSinVender } from './inventory';
+import { equiposSinVender, estadoKey, pendientes, descartados } from './inventory';
 
 const hoy = '2026-10-30';
 
@@ -14,7 +14,7 @@ describe('equiposSinVender', () => {
       ],
       fundings: [],
     });
-    expect(r).toEqual([{ nombre: 'iPhone 12', costo: 215000, primeraCompra: '2026-10-10', dias: 20, atrasado: true }]);
+    expect(r).toEqual([{ nombre: 'iPhone 12', costo: 215000, primeraCompra: '2026-10-10', dias: 20, atrasado: true, estado: null }]);
   });
 
   it('un equipo con una venta (aporte con el mismo grupo) ya no está en inventario', () => {
@@ -45,5 +45,25 @@ describe('equiposSinVender', () => {
       fundings: [],
     });
     expect(r).toEqual([]);
+  });
+});
+
+describe('equipos para repuestos o dados por pérdida', () => {
+  const base = {
+    categoryId: 'cel',
+    hoy: '2026-10-30',
+    expenses: [
+      { category_id: 'cel', etiqueta: 'iPhone 12', fecha: '2026-10-01', monto: 100000 },
+      { category_id: 'cel', etiqueta: 'Samsung A06', fecha: '2026-10-01', monto: 50000 },
+    ],
+    fundings: [],
+  };
+  it('los equipos con estado salen de los pendientes y quedan en descartados', () => {
+    const r = equiposSinVender({ ...base, estados: { [estadoKey('cel', 'samsung a06')]: 'perdida' } });
+    expect(pendientes(r).map((e) => e.nombre)).toEqual(['iPhone 12']);
+    expect(descartados(r).map((e) => [e.nombre, e.estado])).toEqual([['Samsung A06', 'perdida']]);
+  });
+  it('sin estados, todos esperan venta', () => {
+    expect(pendientes(equiposSinVender(base))).toHaveLength(2);
   });
 });
