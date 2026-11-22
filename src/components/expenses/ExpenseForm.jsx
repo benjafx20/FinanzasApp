@@ -15,7 +15,7 @@ import './ExpenseForm.css';
 // `saldosPorCategoria`: mapa category_id -> saldo real, para validar y
 // mostrar cuánto hay disponible al elegir "pagar con otra categoría".
 // Si se pasa `expense`, el formulario edita ese gasto; si no, crea uno nuevo.
-export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, saldosPorCategoria, lookupHabit, onSubmit, onDone, categoryManagement }) {
+export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, saldosPorCategoria, lookupHabit, sugerirGrupos, onSubmit, onDone, categoryManagement }) {
   const isEditing = !!expense;
   const [categoryId, setCategoryId] = useState(expense?.category_id ?? defaultCategoryId ?? categories[0]?.id ?? '');
   const [monto, setMonto] = useState(expense?.monto ?? '');
@@ -143,13 +143,17 @@ export function ExpenseForm({ categories, expenses, expense, defaultCategoryId, 
   // Grupos ya usados en esta misma categoría (ej: "Samsung A06"), para que al
   // escribir se puedan elegir de una lista en vez de tener que escribir el
   // nombre exacto de nuevo y arriesgarse a un typo que rompa el agrupamiento.
-  const etiquetasSugeridas = [
-    ...new Set(
-      (expenses || [])
-        .filter((e) => e.category_id === categoryId && e.etiqueta)
-        .map((e) => e.etiqueta)
-    ),
-  ];
+  // En categorías de inventario (celulares) solo se sugieren los equipos que siguen sin
+  // vender: no tiene sentido agregarle gastos a uno ya vendido. `sugerirGrupos` lo decide.
+  const etiquetasSugeridas = sugerirGrupos
+    ? sugerirGrupos(categoryId)
+    : [
+        ...new Set(
+          (expenses || [])
+            .filter((e) => e.category_id === categoryId && e.etiqueta)
+            .map((e) => e.etiqueta)
+        ),
+      ];
 
   return (
     <form onSubmit={handleSubmit} className="expense-form">

@@ -3,7 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Amount } from '../ui/Amount';
 import { ContributionForm } from './ContributionForm';
-import { confirmar, alertar } from '../../utils/dialogs';
+import { alertar } from '../../utils/dialogs';
 
 // Historial de aportes de una meta: se puede corregir el monto y de dónde salió
 // la plata, o deshacer un aporte (la plata vuelve a su categoría).
@@ -20,7 +20,6 @@ export function GoalDetailModal({ goal, contributions, categories, allCategories
   };
 
   const deshacer = async (aporte) => {
-    if (!(await confirmar('¿Deshacer este aporte? La plata vuelve a la categoría de donde salió.'))) return;
     try {
       await onDelete(aporte.id);
     } catch (err) {
@@ -52,14 +51,21 @@ export function GoalDetailModal({ goal, contributions, categories, allCategories
                   {c.source_category_id
                     ? `de ${nombreCategoria(c.source_category_id) || 'una categoría eliminada'}`
                     : 'sin origen (no descontó)'}
+                  {c.pending && (
+                    <em className="funding-history__pending"> · {c.sync_failed ? 'No se pudo subir' : 'Sin sincronizar'}</em>
+                  )}
                 </span>
                 <strong><Amount value={c.monto} /></strong>
-                <button type="button" className="funding-history__undo" onClick={() => setEditando(c)} aria-label="Corregir aporte">
-                  <Pencil size={14} />
-                </button>
-                <button type="button" className="funding-history__undo" onClick={() => deshacer(c)} aria-label="Deshacer aporte">
-                  <Trash2 size={14} />
-                </button>
+                {!c.pending && (
+                  <>
+                    <button type="button" className="funding-history__undo" onClick={() => setEditando(c)} aria-label="Corregir aporte">
+                      <Pencil size={14} />
+                    </button>
+                    <button type="button" className="funding-history__undo" onClick={() => deshacer(c)} aria-label="Deshacer aporte">
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>

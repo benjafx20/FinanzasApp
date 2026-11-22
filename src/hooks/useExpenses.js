@@ -222,7 +222,6 @@ export function useExpenses(userId) {
   }, [userId]);
 
   const deleteExpense = useCallback(async (expenseId) => {
-    const gasto = expenses.find((e) => e.id === expenseId);
     if (isPendingId(expenseId)) {
       removePendingExpense(userId, expenseId);
       borrarBoleta(expenseId).catch(() => {});
@@ -236,9 +235,9 @@ export function useExpenses(userId) {
 
     if (deleteError) throw new Error('No se pudo eliminar el gasto.');
     setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
-    // Borra también la foto de la boleta (si falla no importa: queda huérfana).
-    if (gasto?.receipt_path) supabase.storage.from('receipts').remove([gasto.receipt_path]);
-  }, [userId, expenses]);
+    // La foto de la boleta NO se borra acá: así el gasto se puede deshacer. Si no se
+    // recupera, la limpieza diaria (utils/receiptCleanup) borra las fotos sin gasto.
+  }, [userId]);
 
   // Cambia el nombre de un grupo en todos los gastos de una categoría.
   const renameEtiqueta = useCallback(async (categoryId, de, a) => {

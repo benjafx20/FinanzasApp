@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx'
 import { PrivacyProvider } from './context/PrivacyContext.jsx'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { DialogHost } from './components/DialogHost.jsx'
+import { ToastHost } from './components/ToastHost.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root')).render(
         <PrivacyProvider>
           <App />
           <DialogHost />
+          <ToastHost />
         </PrivacyProvider>
       </ThemeProvider>
     </ErrorBoundary>

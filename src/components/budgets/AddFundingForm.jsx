@@ -4,10 +4,12 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 
 // `etiquetasSugeridas`: grupos ya usados en esta categoría (gastos y aportes).
-export function AddFundingForm({ category, etiquetasSugeridas = [], onSubmit, onDone }) {
+// Con `equipoVendido` es la venta de un equipo del inventario: el grupo ya viene puesto
+// y solo falta decir en cuánto se vendió.
+export function AddFundingForm({ category, equipoVendido, etiquetasSugeridas = [], onSubmit, onDone }) {
   const [monto, setMonto] = useState('');
-  const [nota, setNota] = useState('');
-  const [etiqueta, setEtiqueta] = useState('');
+  const [nota, setNota] = useState(equipoVendido ? 'Venta' : '');
+  const [etiqueta, setEtiqueta] = useState(equipoVendido || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +31,7 @@ export function AddFundingForm({ category, etiquetasSugeridas = [], onSubmit, on
     <form onSubmit={handleSubmit} className="expense-form">
       <CurrencyInput
         id="funding-monto"
-        label={`Agregar plata a ${category.nombre}`}
+        label={equipoVendido ? `¿En cuánto vendiste ${equipoVendido}?` : `Agregar plata a ${category.nombre}`}
         value={monto}
         onChange={setMonto}
         placeholder="0"

@@ -5,8 +5,9 @@ import { alertar } from '../../utils/dialogs';
 import { hoyISO } from '../../utils/dates';
 import { construirHojas, descargarExcel } from '../../utils/exportData';
 import { NotificationsSection } from './NotificationsSection';
+import { PinSection } from './PinSection';
 
-// Ajustes: respaldo de datos en Excel y notificaciones.
+// Ajustes: bloqueo con PIN, respaldo de datos en Excel y notificaciones.
 export function SettingsModal({ open, onClose, userId, datos }) {
   const [exportando, setExportando] = useState(false);
 
@@ -27,6 +28,7 @@ export function SettingsModal({ open, onClose, userId, datos }) {
   return (
     <Modal open={open} onClose={onClose} title="Ajustes">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <PinSection userId={userId} />
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <strong>Respaldo de tus datos</strong>
           <p className="dashboard__empty">

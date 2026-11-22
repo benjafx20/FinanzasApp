@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAllPages } from '../lib/fetchAll';
 import { hoyISO } from '../utils/dates';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, withSessionRetry } from '../lib/supabaseClient';
+import {
+  nuevoId,
+  mezclarConPendientes,
+  estaPendiente,
+  hayContribucionesPendientesDeMeta,
+  insertarOEncolar,
+  MENSAJE_PENDIENTE,
+} from '../utils/offlineOps';
 
 export function useSavingsGoals(userId) {
   const [goals, setGoals] = useState([]);
@@ -31,7 +39,8 @@ export function useSavingsGoals(userId) {
       return;
     }
     setGoals(goalsRes.data);
-    setContributions(contribRes.data);
+    // Aportes a metas hechos sin conexión que aún no suben: se muestran y cuentan en el ahorro.
+    setContributions(mezclarConPendientes(userId, 'contribution', contribRes.data));
     setLoading(false);
     cargadoRef.current = true;
   }, [userId]);
@@ -86,11 +95,12 @@ export function useSavingsGoals(userId) {
   }, []);
 
   const deleteGoal = useCallback(async (goalId) => {
+    if (hayContribucionesPendientesDeMeta(userId, goalId)) throw new Error(MENSAJE_PENDIENTE);
     const { error: deleteError } = await supabase.from('savings_goals').delete().eq('id', goalId);
     if (deleteError) throw new Error('No se pudo eliminar la meta.');
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
     setContributions((prev) => prev.filter((c) => c.goal_id !== goalId));
-  }, []);
+  }, [userId]);
 
   // Cierra una meta (ya usaste la plata) o la reabre (completed = false). Cerrada,
   // sus aportes siguen descontados de las categorías: la plata se gastó.
@@ -114,6 +124,7 @@ export function useSavingsGoals(userId) {
   // Corrige un aporte (monto y/o de dónde salió la plata).
   const updateContribution = useCallback(async (contributionId, { monto, sourceCategoryId }) => {
     if (!monto || Number(monto) <= 0) throw new Error('El monto debe ser mayor a 0.');
+    if (estaPendiente(userId, contributionId)) throw new Error(MENSAJE_PENDIENTE);
     const { data, error: updateError } = await supabase
       .from('savings_contributions')
       .update({ monto, source_category_id: sourceCategoryId || null })
@@ -123,14 +134,15 @@ export function useSavingsGoals(userId) {
     if (updateError) throw new Error('No se pudo editar el aporte.');
     setContributions((prev) => prev.map((c) => (c.id === contributionId ? data : c)));
     return data;
-  }, []);
+  }, [userId]);
 
   // Deshace un aporte: la plata vuelve a la categoría de donde salió.
   const deleteContribution = useCallback(async (contributionId) => {
+    if (estaPendiente(userId, contributionId)) throw new Error(MENSAJE_PENDIENTE);
     const { error: deleteError } = await supabase.from('savings_contributions').delete().eq('id', contributionId);
     if (deleteError) throw new Error('No se pudo deshacer el aporte.');
     setContributions((prev) => prev.filter((c) => c.id !== contributionId));
-  }, []);
+  }, [userId]);
 
   // `sourceCategoryId`: categoría de donde sale la plata (se descuenta de su
   // saldo). Null/vacío = plata de afuera, que no descuenta de ninguna.
@@ -138,20 +150,25 @@ export function useSavingsGoals(userId) {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto del aporte debe ser mayor a 0.');
 
-    const { data, error: insertError } = await supabase
-      .from('savings_contributions')
-      .insert({
-        goal_id: goalId,
-        user_id: userId,
-        monto,
-        ...(sourceCategoryId ? { source_category_id: sourceCategoryId } : {}),
-      })
-      .select()
-      .single();
+    const fila = {
+      id: nuevoId(),
+      goal_id: goalId,
+      user_id: userId,
+      monto,
+      fecha: hoyISO(),
+      ...(sourceCategoryId ? { source_category_id: sourceCategoryId } : {}),
+    };
+    const res = await insertarOEncolar({
+      userId,
+      kind: 'contribution',
+      filas: [fila],
+      insertar: () => withSessionRetry(() => supabase.from('savings_contributions').insert(fila).select()),
+    });
 
-    if (insertError) throw new Error('No se pudo registrar el aporte.');
-    setContributions((prev) => [...prev, data]);
-    return data;
+    if (res.error) throw new Error('No se pudo registrar el aporte.');
+    const creado = res.filas[0];
+    setContributions((prev) => [...prev, creado]);
+    return creado;
   }, [userId]);
 
   const totalByGoal = useCallback(

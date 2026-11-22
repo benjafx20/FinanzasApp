@@ -1,13 +1,16 @@
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import { useInventoryStatus } from '../hooks/useInventoryStatus';
 import { planearAjusteAhorro } from '../utils/goalAdjust';
 import { calcularFaltante, opcionesParaCubrir } from '../utils/shortfall';
 import { formatCurrency } from '../utils/formatCurrency';
 import { calcularSaldos } from '../utils/balances';
 import { InventoryAlert } from '../components/inventory/InventoryAlert';
-import { equiposSinVender } from '../utils/inventory';
+import { equiposSinVender, pendientes, descartados } from '../utils/inventory';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { useMerchantHabits } from '../hooks/useMerchantHabits';
 import { alertar, confirmar, cubrirFaltante, pedirTexto } from '../utils/dialogs';
+import { mostrarToast } from '../utils/toasts';
+import { restaurarFilas } from '../lib/undoRestore';
 import { useAuth } from '../hooks/useAuth';
 import { useCategories } from '../hooks/useCategories';
 import { useExpenses } from '../hooks/useExpenses';
@@ -52,6 +55,8 @@ import { OnboardingModal } from '../components/onboarding/OnboardingModal';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { usePendingSync } from '../hooks/usePendingSync';
+import { PendingSyncBanner } from '../components/layout/PendingSyncBanner';
 import { OfflineBanner } from '../components/layout/OfflineBanner';
 import { Modal } from '../components/ui/Modal';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
@@ -91,6 +96,7 @@ export function Dashboard() {
   const [editingIncome, setEditingIncome] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const habits = useMerchantHabits(user?.id);
+  const inventoryStatus = useInventoryStatus(user?.id);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [closingGoal, setClosingGoal] = useState(null);
@@ -98,6 +104,8 @@ export function Dashboard() {
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [transferFromCategory, setTransferFromCategory] = useState(null);
   const [fundingCategory, setFundingCategory] = useState(null);
+  // Equipo del inventario que se está marcando como vendido (abre "Agregar plata" con su grupo).
+  const [equipoVendido, setEquipoVendido] = useState(null);
   const [weeklyPlanCategory, setWeeklyPlanCategory] = useState(null);
   const [editingFunding, setEditingFunding] = useState(null);
   const [viewingCategory, setViewingCategory] = useState(null);
@@ -221,6 +229,12 @@ export function Dashboard() {
     categoriesHook.refetch,
   ]);
 
+  // Ingresos, aportes a categorías y aportes a metas hechos sin conexión: se suben
+  // solos al volver la señal y, al terminar, se recargan las listas.
+  const pendingSync = usePendingSync(user?.id, {
+    onSynced: () => Promise.all([refetchIncomes(), refetchFundings(), refetchGoals()]),
+  });
+
   // Gasto atribuido a cada categoría para MOSTRAR (semana/mes), siempre
   // según `category_id` — es decir, "dónde se usó la plata", sin importar
   // si se financió con el saldo de otra categoría.
@@ -327,20 +341,34 @@ export function Dashboard() {
   const equiposPorCategoria = useMemo(() => {
     const map = {};
     for (const cat of allCategories) {
-      if (cat.es_inventario) map[cat.id] = equiposSinVender({ categoryId: cat.id, expenses, fundings });
+      if (cat.es_inventario) {
+        map[cat.id] = equiposSinVender({ categoryId: cat.id, expenses, fundings, estados: inventoryStatus.estados });
+      }
     }
     return map;
-  }, [allCategories, expenses, fundings]);
+  }, [allCategories, expenses, fundings, inventoryStatus.estados]);
   const equiposAtrasados = useMemo(
     () =>
       allCategories
         .filter((c) => c.es_inventario)
-        .flatMap((c) => (equiposPorCategoria[c.id] || []).filter((e) => e.atrasado).map((e) => ({ ...e, categoria: c }))),
+        .flatMap((c) => (equiposPorCategoria[c.id] || []).filter((e) => !e.estado && e.atrasado).map((e) => ({ ...e, categoria: c }))),
     [allCategories, equiposPorCategoria]
   );
 
   // Grupos ("agrupar como") ya usados, para sugerirlos en los formularios.
   const etiquetasConocidas = (categoryId) => etiquetasDe([...expenses, ...fundings], categoryId);
+
+  // Sugerencias de grupo al escribir un gasto o una venta. En categorías de inventario
+  // (celulares) solo se ofrecen los equipos que siguen sin vender, no los ya vendidos
+  // ni los que quedaron para repuestos o dados por pérdida.
+  const sugerenciasDeGrupos = (categoryId) => {
+    const sinVender = (id) => pendientes(equiposPorCategoria[id] || []).map((e) => e.nombre);
+    const esInventario = (id) => !!allCategories.find((c) => c.id === id)?.es_inventario;
+    if (categoryId) return esInventario(categoryId) ? sinVender(categoryId) : etiquetasConocidas(categoryId);
+    const deOtras = etiquetasDe([...expenses, ...fundings].filter((x) => !esInventario(x.category_id)));
+    const deInventario = allCategories.filter((c) => c.es_inventario).flatMap((c) => sinVender(c.id));
+    return [...new Set([...deOtras, ...deInventario])];
+  };
 
   const {
     planActivoPorCategoria,
@@ -388,21 +416,66 @@ export function Dashboard() {
     deleteCategory: categoriesHook.deleteCategory,
   };
 
+  // Borrar algo avisa abajo con "Deshacer" unos segundos: vuelve a insertar las filas
+  // tal como estaban. Por eso ya no se pregunta antes de borrar.
+  const avisarBorrado = (mensaje, restaurar) =>
+    mostrarToast({
+      mensaje,
+      accion: 'Deshacer',
+      alAccionar: async () => {
+        try {
+          await restaurar();
+        } catch (err) {
+          alertar(err.message);
+        }
+      },
+    });
+
   const handleDelete = async (id) => {
+    const gasto = expenses.find((e) => e.id === id);
     try {
       await deleteExpense(id);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    // Un gasto guardado sin conexión (aún no subido) no se puede restaurar.
+    if (gasto && !String(id).startsWith('pending-')) {
+      avisarBorrado('Gasto eliminado', async () => {
+        await restaurarFilas('expenses', [gasto]);
+        await refetchExpenses();
+      });
     }
   };
 
 
   const handleDeleteGoal = async (id) => {
-    if (!(await confirmar('¿Eliminar esta meta? Se perderá el historial de aportes y la plata ahorrada volverá a las categorías de donde salió.'))) return;
+    const meta = goals.find((g) => g.id === id);
+    const aportes = savingsContributions.filter((c) => c.goal_id === id);
     try {
       await deleteGoal(id);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    if (meta) {
+      avisarBorrado('Meta eliminada: la plata ahorrada volvió a sus categorías', async () => {
+        await restaurarFilas('savings_goals', [meta]);
+        await restaurarFilas('savings_contributions', aportes);
+        await refetchGoals();
+      });
+    }
+  };
+
+  // Deshacer un aporte a una meta: la plata vuelve a la categoría de donde salió.
+  const handleDeleteContribution = async (id) => {
+    const aporte = savingsContributions.find((c) => c.id === id);
+    await deleteContribution(id);
+    if (aporte) {
+      avisarBorrado('Aporte deshecho', async () => {
+        await restaurarFilas('savings_contributions', [aporte]);
+        await refetchGoals();
+      });
     }
   };
 
@@ -499,6 +572,7 @@ export function Dashboard() {
         await renameEtiquetaGastos(categoryId, nuevo, nombreActual); // deja todo como estaba
         throw err;
       }
+      await inventoryStatus.renombrar(categoryId, nombreActual, nuevo).catch(() => {});
       return nuevo;
     } catch (err) {
       await alertar(err.message);
@@ -562,40 +636,63 @@ export function Dashboard() {
   const handleMarkDebtPaid = (debt) => setPayingDebt(debt);
 
   const handleDeleteDebt = async (debt) => {
-    const mueve = movimientosDeuda.length > 0 && (debt.source_category_id || debt.destination_category_id);
-    const aviso = mueve ? ' La plata que movió vuelve a su categoría.' : '';
-    if (!(await confirmar(`¿Eliminar este registro?${aviso}`))) return;
     try {
       await deleteDebt(debt.id);
     } catch (err) {
       alertar(err.message);
+      return;
     }
+    avisarBorrado('Registro eliminado', async () => {
+      await restaurarFilas('debts', [debt]);
+      await refetchDebts();
+    });
   };
 
   const handleDeleteRecurring = async (id) => {
-    if (!(await confirmar('¿Eliminar este gasto recurrente? No se borrarán los gastos ya generados.'))) return;
+    const fila = recurring.find((r) => r.id === id);
     try {
       await deleteRecurring(id);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    if (fila) {
+      avisarBorrado('Gasto recurrente eliminado', async () => {
+        await restaurarFilas('recurring_expenses', [fila]);
+        await refetchRecurring();
+      });
     }
   };
 
   const handleUndoTransfer = async (id) => {
-    if (!(await confirmar('¿Deshacer este movimiento entre categorías?'))) return;
+    const movimiento = transfers.find((t) => t.id === id);
     try {
       await deleteTransfer(id);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    if (movimiento) {
+      avisarBorrado('Movimiento deshecho', async () => {
+        await restaurarFilas('budget_transfers', [movimiento]);
+        await refetchTransfers();
+      });
     }
   };
 
   const handleUndoFunding = async (id) => {
-    if (!(await confirmar('¿Deshacer este aporte? Bajará el saldo de la categoría.'))) return;
+    const aporte = fundings.find((f) => f.id === id);
     try {
       await deleteFunding(id);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    if (aporte) {
+      avisarBorrado('Aporte eliminado', async () => {
+        await restaurarFilas('category_fundings', [aporte]);
+        await refetchFundings();
+      });
     }
   };
 
@@ -604,13 +701,23 @@ export function Dashboard() {
   // aportes para que no quede plata "fantasma" en otra categoría antes de
   // borrar el ingreso en sí.
   const handleDeleteIncomeFromDetail = async (incomeId) => {
-    if (!(await confirmar('¿Eliminar este ingreso? Se quitará también de todas las categorías en las que se repartió.'))) return;
+    const ingreso = incomes.find((i) => i.id === incomeId);
+    const aportes = fundings.filter((f) => f.income_id === incomeId);
     try {
       // Primero todos los aportes del ingreso de una vez, y luego el ingreso.
       await deleteFundingsByIncome(incomeId);
       await deleteIncome(incomeId);
     } catch (err) {
       alertar(err.message);
+      return;
+    }
+    if (ingreso) {
+      avisarBorrado('Ingreso eliminado (también de las categorías en que se repartió)', async () => {
+        await restaurarFilas('incomes', [ingreso]);
+        await restaurarFilas('category_fundings', aportes);
+        await refetchIncomes();
+        await refetchFundings();
+      });
     }
   };
 
@@ -668,6 +775,18 @@ export function Dashboard() {
       />
 
       {!isOnline && <OfflineBanner />}
+      <PendingSyncBanner
+        pendientes={pendingSync.total}
+        fallidas={pendingSync.fallidas}
+        gastosPendientes={expenses.filter((e) => e.pending).length}
+        sincronizando={pendingSync.sincronizando}
+        isOnline={isOnline}
+        onDescartar={async () => {
+          if (await confirmar(`Se van a descartar ${pendingSync.fallidas} movimientos que el servidor rechazó. No se pueden recuperar. ¿Descartar?`, { titulo: 'Descartar movimientos', textoConfirmar: 'Descartar', peligro: true })) {
+            await pendingSync.descartar();
+          }
+        }}
+      />
 
       {showOnboarding && <OnboardingModal onFinish={finishOnboarding} />}
 
@@ -933,6 +1052,7 @@ export function Dashboard() {
               defaultCategoryId={presetExpenseCategoryId}
               saldosPorCategoria={saldoPorCategoria}
               lookupHabit={habits.lookup}
+              sugerirGrupos={sugerenciasDeGrupos}
               onSubmit={handleAddExpense}
               onDone={closeNewRecordModal}
               categoryManagement={categoryManagement}
@@ -941,7 +1061,7 @@ export function Dashboard() {
         ) : (
           <IncomeForm
             categories={categories}
-            etiquetasSugeridas={etiquetasConocidas()}
+            etiquetasSugeridas={sugerenciasDeGrupos()}
             onSubmit={handleAddIncome}
             onDone={closeNewRecordModal}
           />
@@ -956,6 +1076,7 @@ export function Dashboard() {
             expense={editingExpense}
             saldosPorCategoria={saldoPorCategoria}
             lookupHabit={habits.lookup}
+              sugerirGrupos={sugerenciasDeGrupos}
             onSubmit={handleUpdateExpense}
             onDone={() => setEditingExpense(null)}
             categoryManagement={categoryManagement}
@@ -1065,13 +1186,24 @@ export function Dashboard() {
         )}
       </Modal>
 
-      <Modal open={!!fundingCategory} onClose={() => setFundingCategory(null)} title="Agregar plata">
+      <Modal
+        open={!!fundingCategory}
+        onClose={() => {
+          setFundingCategory(null);
+          setEquipoVendido(null);
+        }}
+        title={equipoVendido ? 'Marcar como vendido' : 'Agregar plata'}
+      >
         {fundingCategory && (
           <AddFundingForm
             category={fundingCategory}
-            etiquetasSugeridas={etiquetasConocidas(fundingCategory.id)}
+            equipoVendido={equipoVendido}
+            etiquetasSugeridas={sugerenciasDeGrupos(fundingCategory.id)}
             onSubmit={handleAddFunding}
-            onDone={() => setFundingCategory(null)}
+            onDone={() => {
+              setFundingCategory(null);
+              setEquipoVendido(null);
+            }}
           />
         )}
       </Modal>
@@ -1102,7 +1234,7 @@ export function Dashboard() {
         fundings={fundings}
         allCategories={allCategories}
         saldoPorCategoria={saldoPorCategoria}
-        etiquetasSugeridas={editingFunding ? etiquetasConocidas(editingFunding.category_id) : []}
+        etiquetasSugeridas={editingFunding ? sugerenciasDeGrupos(editingFunding.category_id) : []}
         onSubmit={(cambios) => updateFunding(editingFunding.id, cambios)}
       />
 
@@ -1171,7 +1303,7 @@ export function Dashboard() {
         saldoPorCategoria={saldoPorCategoria}
         asegurarSaldo={asegurarSaldo}
         onUpdate={updateContribution}
-        onDelete={deleteContribution}
+        onDelete={handleDeleteContribution}
         onClose={() => setViewingGoal(null)}
       />
 
@@ -1199,7 +1331,7 @@ export function Dashboard() {
               income={distributingIncome}
               restante={Math.max(0, Number(distributingIncome.monto) - repartido)}
               categories={categories}
-              etiquetasSugeridas={etiquetasConocidas()}
+              etiquetasSugeridas={sugerenciasDeGrupos()}
               onSubmit={(reparto, etiqueta) => addIncomeFundings(distributingIncome.id, reparto, etiqueta)}
               onDone={() => setDistributingIncome(null)}
             />
@@ -1245,7 +1377,16 @@ export function Dashboard() {
             }}
             onRenameGroup={(nombre) => handleRenameGroup(viewingCategory.id, nombre)}
             esInventario={!!allCategories.find((c) => c.id === viewingCategory.id)?.es_inventario}
-            equipos={equiposPorCategoria[viewingCategory.id] || []}
+            equipos={pendientes(equiposPorCategoria[viewingCategory.id] || [])}
+            descartados={descartados(equiposPorCategoria[viewingCategory.id] || [])}
+            onVendido={(nombre) => {
+              setEquipoVendido(nombre);
+              setFundingCategory(viewingCategory);
+              setViewingCategory(null);
+            }}
+            onMarcarEquipo={(nombre, estado) =>
+              inventoryStatus.setEstado(viewingCategory.id, nombre, estado).catch((err) => alertar(err.message))
+            }
             onToggleInventario={(valor) => categoriesHook.setInventario(viewingCategory.id, valor).catch((err) => alertar(err.message))}
             onEditarPresupuesto={(plan) => {
               setEditingPlan({ category: viewingCategory, plan });

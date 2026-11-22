@@ -2,9 +2,10 @@ import { useAuth } from './hooks/useAuth';
 import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { PinGate } from './components/lock/PinGate';
 
 function App() {
-  const { user, loading, passwordRecovery } = useAuth();
+  const { user, loading, passwordRecovery, sesionRestaurada } = useAuth();
 
   if (loading) {
     return (
@@ -18,7 +19,14 @@ function App() {
   // de contraseña, debe definir una nueva antes de seguir usando la app.
   if (passwordRecovery) return <ResetPasswordPage />;
 
-  return user ? <Dashboard /> : <AuthPage />;
+  if (!user) return <AuthPage />;
+
+  // key={user.id}: si cambia la cuenta, el portero parte de cero con el PIN de esa cuenta.
+  return (
+    <PinGate key={user.id} userId={user.id} startLocked={sesionRestaurada}>
+      <Dashboard />
+    </PinGate>
+  );
 }
 
 export default App;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { CategoryIcon } from '../../utils/CategoryIcon';
 import { Amount } from '../ui/Amount';
 import { ExpenseCard } from '../expenses/ExpenseCard';
@@ -8,6 +9,41 @@ import './CategoryDetailModal.css';
 // `asignado`: total que le has metido a esta categoría (tu presupuesto real
 // para ella). `saldo`: lo que te queda (asignado - gastado).
 // `gastadoSemana` / `gastadoMes`: solo informativos.
+// Sección plegable: el detalle de una categoría tiene mucha información, así que todo
+// arranca cerrado (con un resumen en el título) y se abre solo lo que se necesita.
+function Seccion({ titulo, resumen, abierta, onToggle, children }) {
+  return (
+    <div className="category-detail__grupos">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={abierta}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          padding: '4px 0',
+          color: 'inherit',
+          fontSize: 13,
+          fontWeight: 700,
+          textAlign: 'left',
+        }}
+      >
+        <span>
+          {titulo}
+          {resumen ? <span style={{ fontWeight: 400, opacity: 0.7 }}> · {resumen}</span> : null}
+        </span>
+        <ChevronDown size={16} style={{ flexShrink: 0, transform: abierta ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {abierta && children}
+    </div>
+  );
+}
+
 export function CategoryDetailModal({
   category,
   asignado,
@@ -25,6 +61,9 @@ export function CategoryDetailModal({
   onRenameGroup,
   esInventario,
   equipos = [],
+  descartados = [],
+  onMarcarEquipo,
+  onVendido,
   onToggleInventario,
   onEditarPresupuesto,
   onApagarPresupuesto,
@@ -102,6 +141,14 @@ export function CategoryDetailModal({
   const fundingsVisibles = fundingsFiltrados.slice(0, fundingLimit);
   const hayMasFundings = fundingsFiltrados.length > fundingLimit;
 
+  const [abiertas, setAbiertas] = useState({});
+  const alternar = (clave) => setAbiertas((p) => ({ ...p, [clave]: !p[clave] }));
+  const abrir = (clave) => setAbiertas((p) => ({ ...p, [clave]: true }));
+  const plataParada = equipos.reduce((sum, e) => sum + e.costo, 0);
+  const plataPerdida = descartados.filter((e) => e.estado === 'perdida').reduce((sum, e) => sum + e.costo, 0);
+  const nombreEstado = { repuesto: 'Para repuestos', perdida: 'Dado por pérdida' };
+  const filaEquipo = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontSize: 13 };
+
   return (
     <div className="category-detail">
       <div className="category-detail__header">
@@ -131,8 +178,18 @@ export function CategoryDetailModal({
         <span>Mes: <strong><Amount value={gastadoMes} /></strong></span>
       </div>
 
-      <div className="category-detail__grupos">
-        <span className="category-detail__expenses-title">Inventario de equipos</span>
+      <div className="category-detail__actions">
+        <button type="button" onClick={onAddExpense}>+ Gasto</button>
+        <button type="button" onClick={onAddFunds}>+ Agregar plata</button>
+        <button type="button" onClick={onOpenTransfer}>Mover plata</button>
+      </div>
+
+      <Seccion
+        titulo="Inventario de equipos"
+        resumen={esInventario ? `${equipos.length} sin vender` : 'desactivado'}
+        abierta={!!abiertas.inventario}
+        onToggle={() => alternar('inventario')}
+      >
         {esInventario ? (
           <>
             {equipos.length === 0 ? (
@@ -141,13 +198,44 @@ export function CategoryDetailModal({
               <>
                 <div className="category-detail__stats">
                   <span>Sin vender: <strong>{equipos.length}</strong></span>
-                  <span>Plata parada: <strong><Amount value={equipos.reduce((s, e) => s + e.costo, 0)} /></strong></span>
+                  <span>Plata parada: <strong><Amount value={plataParada} /></strong></span>
                 </div>
                 {equipos.map((e) => (
-                  <p key={e.nombre} className="dashboard__empty">
-                    <strong>{e.nombre}</strong>: <Amount value={e.costo} /> · {e.dias === 1 ? '1 día' : `${e.dias} días`}
-                    {e.atrasado ? ' ⚠' : ''}
-                  </p>
+                  <div key={e.nombre} style={filaEquipo}>
+                    <span>
+                      <strong>{e.nombre}</strong>: <Amount value={e.costo} /> · {e.dias === 1 ? '1 día' : `${e.dias} días`}
+                      {e.atrasado ? ' ⚠' : ''}
+                    </span>
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button type="button" className="category-detail__show-more" onClick={() => onVendido(e.nombre)}>
+                        <strong>Vendido</strong>
+                      </button>
+                      <button type="button" className="category-detail__show-more" onClick={() => onMarcarEquipo(e.nombre, 'repuesto')}>
+                        Para repuestos
+                      </button>
+                      <button type="button" className="category-detail__show-more" onClick={() => onMarcarEquipo(e.nombre, 'perdida')}>
+                        Pérdida
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+            {descartados.length > 0 && (
+              <>
+                <p className="dashboard__empty">
+                  <strong>Ya no se venden ({descartados.length})</strong>
+                  {plataPerdida > 0 && <> · pérdida: <Amount value={plataPerdida} /></>}
+                </p>
+                {descartados.map((e) => (
+                  <div key={e.nombre} style={filaEquipo}>
+                    <span>
+                      <strong>{e.nombre}</strong> · {nombreEstado[e.estado]} · <Amount value={e.costo} />
+                    </span>
+                    <button type="button" className="category-detail__show-more" onClick={() => onMarcarEquipo(e.nombre, null)}>
+                      Volver a inventario
+                    </button>
+                  </div>
                 ))}
               </>
             )}
@@ -160,10 +248,14 @@ export function CategoryDetailModal({
             Usar como inventario (equipos comprados y sin vender)
           </button>
         )}
-      </div>
+      </Seccion>
 
-      <div className="category-detail__grupos">
-        <span className="category-detail__expenses-title">Presupuesto semanal</span>
+      <Seccion
+        titulo="Presupuesto semanal"
+        resumen={plan && semana?.estado === 'activo' ? <>esta semana <Amount value={semana.disponible} /></> : 'sin activar'}
+        abierta={!!abiertas.presupuesto}
+        onToggle={() => alternar('presupuesto')}
+      >
         {plan && semana?.estado === 'activo' ? (
           <>
             <div className="category-detail__stats">
@@ -211,49 +303,10 @@ export function CategoryDetailModal({
             Activar presupuesto semanal
           </button>
         )}
-      </div>
-
-      <div className="category-detail__actions">
-        <button type="button" onClick={onAddExpense}>+ Gasto</button>
-        <button type="button" onClick={onAddFunds}>+ Agregar plata</button>
-        <button type="button" onClick={onOpenTransfer}>Mover plata</button>
-      </div>
-
-      <div className="category-detail__fundings">
-        <span className="category-detail__expenses-title">Aportes recibidos</span>
-        {fundingsFiltrados.length === 0 ? (
-          <p className="dashboard__empty">Todavía no hay aportes en {grupoActivo ? 'este grupo' : 'esta categoría'}.</p>
-        ) : (
-          <>
-            <FundingHistory
-              fundings={fundingsVisibles}
-              onUndo={onUndoFunding}
-              onDeleteIncome={onDeleteIncome}
-              onEdit={onEditFunding}
-            />
-            {hayMasFundings && (
-              <button
-                type="button"
-                className="category-detail__show-more"
-                onClick={() => setFundingLimit((n) => n + 4)}
-              >
-                Ver 4 más
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {category.user_id && (
-        <div className="category-detail__manage">
-          <button type="button" onClick={onEditCategory}>Editar categoría</button>
-          <button type="button" className="category-detail__delete" onClick={onDeleteCategory}>Eliminar</button>
-        </div>
-      )}
+      </Seccion>
 
       {grupos.length > 0 && (
-        <div className="category-detail__grupos">
-          <span className="category-detail__expenses-title">Grupos</span>
+        <Seccion titulo="Grupos" resumen={`${grupos.length}`} abierta={!!abiertas.grupos} onToggle={() => alternar('grupos')}>
           <div className="category-detail__grupos-lista">
             <button
               type="button"
@@ -273,6 +326,7 @@ export function CategoryDetailModal({
                 onClick={() => {
                   setGrupoActivo((actual) => (actual === g.nombre ? null : g.nombre));
                   setExpenseLimit(4);
+                  abrir('gastos');
                 }}
               >
                 {g.nombre} · <Amount value={g.gastado} /> ({g.cantidad})
@@ -298,13 +352,15 @@ export function CategoryDetailModal({
               Cambiar nombre de este grupo
             </button>
           )}
-        </div>
+        </Seccion>
       )}
 
-      <div className="category-detail__expenses">
-        <span className="category-detail__expenses-title">
-          {grupoActivo ? `Gastos de "${grupoActivo}"` : 'Gastos de esta categoría'}
-        </span>
+      <Seccion
+        titulo={grupoActivo ? `Gastos de "${grupoActivo}"` : 'Gastos'}
+        resumen={`${expensesFiltrados.length}`}
+        abierta={!!abiertas.gastos}
+        onToggle={() => alternar('gastos')}
+      >
         {expensesFiltrados.length === 0 ? (
           <p className="dashboard__empty">Todavía no hay gastos en esta categoría.</p>
         ) : (
@@ -315,17 +371,45 @@ export function CategoryDetailModal({
               ))}
             </div>
             {hayMasGastos && (
-              <button
-                type="button"
-                className="category-detail__show-more"
-                onClick={() => setExpenseLimit((n) => n + 4)}
-              >
+              <button type="button" className="category-detail__show-more" onClick={() => setExpenseLimit((n) => n + 4)}>
                 Ver 4 más
               </button>
             )}
           </>
         )}
-      </div>
+      </Seccion>
+
+      <Seccion
+        titulo="Aportes recibidos"
+        resumen={`${fundingsFiltrados.length}`}
+        abierta={!!abiertas.aportes}
+        onToggle={() => alternar('aportes')}
+      >
+        {fundingsFiltrados.length === 0 ? (
+          <p className="dashboard__empty">Todavía no hay aportes en {grupoActivo ? 'este grupo' : 'esta categoría'}.</p>
+        ) : (
+          <>
+            <FundingHistory
+              fundings={fundingsVisibles}
+              onUndo={onUndoFunding}
+              onDeleteIncome={onDeleteIncome}
+              onEdit={onEditFunding}
+            />
+            {hayMasFundings && (
+              <button type="button" className="category-detail__show-more" onClick={() => setFundingLimit((n) => n + 4)}>
+                Ver 4 más
+              </button>
+            )}
+          </>
+        )}
+      </Seccion>
+
+      {category.user_id && (
+        <div className="category-detail__manage">
+          <button type="button" onClick={onEditCategory}>Editar categoría</button>
+          <button type="button" className="category-detail__delete" onClick={onDeleteCategory}>Eliminar</button>
+        </div>
+      )}
     </div>
   );
 }

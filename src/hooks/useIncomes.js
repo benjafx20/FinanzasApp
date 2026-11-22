@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAllPages } from '../lib/fetchAll';
 import { supabase, withSessionRetry } from '../lib/supabaseClient';
+import { hoyISO } from '../utils/dates';
+import { nuevoId, mezclarConPendientes, estaPendiente, insertarOEncolar, MENSAJE_PENDIENTE } from '../utils/offlineOps';
 
 export function useIncomes(userId) {
   const [incomes, setIncomes] = useState([]);
@@ -35,7 +37,8 @@ export function useIncomes(userId) {
       cargadoRef.current = true;
       return;
     }
-    setIncomes(data);
+    // Lo registrado sin conexión que aún no sube se muestra igual, marcado como pendiente.
+    setIncomes(mezclarConPendientes(userId, 'income', data));
     setLoading(false);
     cargadoRef.current = true;
   }, [userId]);
@@ -48,20 +51,27 @@ export function useIncomes(userId) {
     if (!userId) throw new Error('Debes iniciar sesión.');
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
 
-    const { data, error: insertError } = await withSessionRetry(() =>
-      supabase.from('incomes').insert({ user_id: userId, monto, fecha, nota }).select().single()
-    );
+    // El id se crea aquí: si hay que repetir la subida, no se duplica.
+    const fila = { id: nuevoId(), user_id: userId, monto, fecha: fecha || hoyISO(), nota };
+    const res = await insertarOEncolar({
+      userId,
+      kind: 'income',
+      filas: [fila],
+      insertar: () => withSessionRetry(() => supabase.from('incomes').insert(fila).select()),
+    });
 
-    if (insertError) {
-      console.error('[useIncomes] addIncome:', insertError);
-      throw new Error(`No se pudo registrar el ingreso: ${insertError.message}`);
+    if (res.error) {
+      console.error('[useIncomes] addIncome:', res.error);
+      throw new Error(`No se pudo registrar el ingreso: ${res.error.message}`);
     }
-    setIncomes((prev) => [data, ...prev]);
-    return data;
+    const creado = res.filas[0];
+    setIncomes((prev) => [creado, ...prev]);
+    return creado;
   }, [userId]);
 
   const updateIncome = useCallback(async (incomeId, { monto, fecha, nota }) => {
     if (!monto || monto <= 0) throw new Error('El monto debe ser mayor a 0.');
+    if (estaPendiente(userId, incomeId)) throw new Error(MENSAJE_PENDIENTE);
 
     const { data, error: updateError } = await supabase
       .from('incomes')
@@ -73,13 +83,14 @@ export function useIncomes(userId) {
     if (updateError) throw new Error('No se pudo actualizar el ingreso.');
     setIncomes((prev) => prev.map((i) => (i.id === incomeId ? data : i)));
     return data;
-  }, []);
+  }, [userId]);
 
   const deleteIncome = useCallback(async (incomeId) => {
+    if (estaPendiente(userId, incomeId)) throw new Error(MENSAJE_PENDIENTE);
     const { error: deleteError } = await supabase.from('incomes').delete().eq('id', incomeId);
     if (deleteError) throw new Error('No se pudo eliminar el ingreso.');
     setIncomes((prev) => prev.filter((i) => i.id !== incomeId));
-  }, []);
+  }, [userId]);
 
   return { incomes, loading, error, addIncome, updateIncome, deleteIncome, refetch: fetchIncomes };
 }

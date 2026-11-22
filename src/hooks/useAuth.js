@@ -5,10 +5,14 @@ export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  // true si al abrir la app ya había una sesión guardada (no escribió contraseña).
+  // Sirve para pedir el PIN al abrir, pero no justo después de iniciar sesión.
+  const [sesionRestaurada, setSesionRestaurada] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setSesionRestaurada(!!session);
       setLoading(false);
     });
 
@@ -57,6 +61,7 @@ export function useAuth() {
     user,
     loading,
     passwordRecovery,
+    sesionRestaurada,
     signUp,
     signIn,
     signOut,

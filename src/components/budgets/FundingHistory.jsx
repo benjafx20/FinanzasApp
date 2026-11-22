@@ -21,9 +21,12 @@ export function FundingHistory({ fundings, onUndo, onDeleteIncome, onEdit }) {
             {f.origen === 'ingreso' ? 'De un ingreso repartido' : 'Agregado a mano'}
             {f.etiqueta && <strong> · {f.etiqueta}</strong>}
             {f.nota && ` · ${f.nota}`}
+            {f.pending && (
+              <em className="funding-history__pending"> · {f.sync_failed ? 'No se pudo subir' : 'Sin sincronizar'}</em>
+            )}
           </span>
           <span className="funding-history__monto">+<Amount value={f.monto} /></span>
-          {onEdit && (
+          {onEdit && !f.pending && (
             <button
               type="button"
               className="funding-history__undo"
@@ -33,7 +36,7 @@ export function FundingHistory({ fundings, onUndo, onDeleteIncome, onEdit }) {
               <Pencil size={14} />
             </button>
           )}
-          {f.origen === 'ingreso' && f.income_id ? (
+          {f.pending ? null : f.origen === 'ingreso' && f.income_id ? (
             <button
               type="button"
               className="funding-history__undo funding-history__delete"
