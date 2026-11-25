@@ -8,8 +8,8 @@
 // necesita leer/escribir datos de todos los usuarios, no solo del que
 // esté conectado.
 //
-// Deploy: supabase functions deploy generate-recurring-expenses
-// Prueba manual: supabase functions invoke generate-recurring-expenses
+// Deploy: supabase functions deploy generate-recurring-expenses --no-verify-jwt
+// Requiere el secret CRON_SECRET (el mismo que manda cron.sql en la cabecera x-cron-secret).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -17,7 +17,26 @@ function diasEnMes(anio, mesIndex) {
   return new Date(anio, mesIndex + 1, 0).getDate();
 }
 
-Deno.serve(async (_req) => {
+// Compara sin dejar pistas por el tiempo que demora.
+function compararSeguro(a, b) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+function respuesta(cuerpo, status = 200) {
+  return new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+Deno.serve(async (req) => {
+  // Solo el cron puede llamarla: manda el secreto en la cabecera x-cron-secret.
+  const secreto = Deno.env.get('CRON_SECRET');
+  if (!secreto) return respuesta({ ok: false, error: 'Falta configurar CRON_SECRET.' }, 500);
+  if (!compararSeguro(req.headers.get('x-cron-secret') ?? '', secreto)) {
+    return respuesta({ ok: false, error: 'No autorizado.' }, 401);
+  }
+
   try {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL'),

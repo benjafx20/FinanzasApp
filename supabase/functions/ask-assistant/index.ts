@@ -11,26 +11,41 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// Solo estos sitios pueden llamar a la funcion desde un navegador. Se cambia con
+// el secret ORIGENES_PERMITIDOS (separados por coma).
+const ORIGENES_PERMITIDOS = (
+  Deno.env.get('ORIGENES_PERMITIDOS') ?? 'https://finanzascrack.netlify.app,http://localhost:5173'
+)
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function cabecerasCors(req) {
+  const origen = req.headers.get('Origin') ?? '';
+  const base = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
+  return ORIGENES_PERMITIDOS.includes(origen) ? { ...base, 'Access-Control-Allow-Origin': origen } : base;
+}
 
 const MODEL = 'gemini-flash-latest';
 const MAX_MESSAGES = 20;
 const MAX_CONTEXT_BYTES = 200_000;
 
-function jsonResponse(body, status = 200) {
+function respuestaJson(body, status, cors) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
 Deno.serve(async (req) => {
+  const cors = cabecerasCors(req);
+  const jsonResponse = (body, status = 200) => respuestaJson(body, status, cors);
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   try {

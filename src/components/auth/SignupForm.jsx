@@ -12,6 +12,10 @@ export function SignupForm({ onSubmit, onSwitchToLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden.');
       return;
@@ -44,9 +48,9 @@ export function SignupForm({ onSubmit, onSwitchToLogin }) {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Mínimo 6 caracteres"
+        placeholder="Mínimo 8 caracteres"
         required
-        minLength={6}
+        minLength={8}
         autoComplete="new-password"
       />
       <Input

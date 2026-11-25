@@ -10,33 +10,49 @@
 //       - el resto de los días: aviso de los equipos que cumplen justo 15 días.
 //     { force: true } ignora la hora y se comporta como lunes (para probar).
 //
-// Las claves ya vienen en el código (ver más abajo): no hace falta cargar secrets.
+// Las claves se cargan como secrets en Supabase (ver supabase/LEEME-NOTIFICACIONES.md).
 //
 // Deploy: pegar en Edge Functions > send-push (o supabase functions deploy send-push).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// Solo estos sitios pueden llamar a la funcion desde un navegador. Se cambia con
+// el secret ORIGENES_PERMITIDOS (separados por coma).
+const ORIGENES_PERMITIDOS = (
+  Deno.env.get('ORIGENES_PERMITIDOS') ?? 'https://finanzascrack.netlify.app,http://localhost:5173'
+)
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function cabecerasCors(req) {
+  const origen = req.headers.get('Origin') ?? '';
+  const base = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
+  return ORIGENES_PERMITIDOS.includes(origen) ? { ...base, 'Access-Control-Allow-Origin': origen } : base;
+}
 
 const UMBRAL_DIAS = 15;
 
-// Claves de las notificaciones, directo en el código (el proyecto es privado). Si
-// algún día prefieres no tenerlas aquí, cárgalas como secrets en Supabase con los
-// mismos nombres y borra estos valores: los secrets tienen prioridad.
-const VAPID_PUBLIC_KEY_POR_DEFECTO = 'BIcJEEXqQyoUX0idjdm1j0z_opl-dXyPGQQeq8P1ZCt9INU2nKbtdZkvvXF1B0Dv2jCYqe1erIyv7E96dohAdBc';
-const VAPID_PRIVATE_KEY_POR_DEFECTO = 'WJJsJ69E1AA214BIqviyRRmMW1BSwJ-vbc-8hhSnpwM';
-const VAPID_SUBJECT_POR_DEFECTO = 'mailto:admin@example.com'; // opcional: tu correo
-const CRON_SECRET_POR_DEFECTO = 'BUHHsTPFm0zsHnkFf4fY0x-SCWOKDi9b';
+// Compara sin dejar pistas por el tiempo que demora.
+function compararSeguro(a, b) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
 
-function json(body, status = 200) {
+// Las claves ya no van en el codigo: se cargan como secrets en Supabase
+// (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT y CRON_SECRET).
+
+function respuestaJson(body, status, cors) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
@@ -130,20 +146,22 @@ async function avisosInventario(admin, userId, esLunes) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const cors = cabecerasCors(req);
+  const json = (body, status = 200) => respuestaJson(body, status, cors);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const publica = Deno.env.get('VAPID_PUBLIC_KEY') || VAPID_PUBLIC_KEY_POR_DEFECTO;
-    const privada = Deno.env.get('VAPID_PRIVATE_KEY') || VAPID_PRIVATE_KEY_POR_DEFECTO;
+    const publica = Deno.env.get('VAPID_PUBLIC_KEY');
+    const privada = Deno.env.get('VAPID_PRIVATE_KEY');
     if (!publica || !privada) {
       return json({ ok: false, error: 'Faltan VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY en los secrets de Supabase.' }, 200);
     }
-    webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') || VAPID_SUBJECT_POR_DEFECTO, publica, privada);
+    webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com', publica, privada);
 
     const admin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
     const body = await req.json().catch(() => ({}));
-    const secreto = Deno.env.get('CRON_SECRET') || CRON_SECRET_POR_DEFECTO;
-    const esCron = !!secreto && req.headers.get('x-cron-secret') === secreto;
+    const secreto = Deno.env.get('CRON_SECRET');
+    const esCron = !!secreto && compararSeguro(req.headers.get('x-cron-secret') ?? '', secreto);
 
     if (!esCron) {
       const cliente = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'), {

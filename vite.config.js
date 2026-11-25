@@ -1,9 +1,38 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'node:fs'
+
+// Las cabeceras de seguridad viven en netlify.toml. Para que "npm run preview"
+// (prueba local) responda igual que Netlify, se leen de ahi.
+function cabecerasDeNetlify() {
+  try {
+    const toml = fs.readFileSync(new URL('./netlify.toml', import.meta.url), 'utf8');
+    const bloque = toml.split('[[headers]]').find((b) => b.includes('for = "/*"')) || '';
+    const cabeceras = {};
+    for (const m of bloque.matchAll(/^\s*([A-Za-z-]+) = "(.*)"\s*$/gm)) cabeceras[m[1]] = m[2];
+    delete cabeceras.for;
+    return cabeceras;
+  } catch {
+    return {};
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  preview: { headers: cabecerasDeNetlify() },
+  test: {
+    env: {
+      VITE_SUPABASE_URL: 'https://proyecto-de-prueba.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'clave-de-prueba',
+    },
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/main.jsx'],
+      reporter: ['text-summary', 'json-summary', 'html'],
+    },
+  },
   plugins: [
     react(),
     VitePWA({

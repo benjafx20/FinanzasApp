@@ -176,7 +176,7 @@ alter table expenses add column if not exists recurring_expense_id uuid referenc
 -- plantilla recurrente en el mismo mes calendario, sin importar si lo
 -- intenta generar el cron dos veces o cualquier otro proceso.
 create unique index if not exists idx_expenses_recurring_unique_month
-  on expenses (recurring_expense_id, date_trunc('month', fecha))
+  on expenses (recurring_expense_id, date_trunc('month', fecha::timestamp))
   where recurring_expense_id is not null;
 
 -- ---------- 8. TRANSFERENCIAS ENTRE CATEGORÍAS ----------

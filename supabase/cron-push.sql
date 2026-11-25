@@ -1,7 +1,7 @@
 -- ============================================================
 -- CRON: avisos push (resumen semanal y equipos sin vender)
 -- Ejecutar en el SQL Editor DESPUÉS de desplegar la función send-push.
--- Ya viene con los datos de tu proyecto: solo pégalo y córrelo.
+-- Ya trae el secreto del cron (el mismo valor del secret CRON_SECRET). No subir a GitHub.
 -- ============================================================
 
 create extension if not exists pg_cron with schema extensions;

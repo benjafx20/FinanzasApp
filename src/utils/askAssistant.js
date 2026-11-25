@@ -1,9 +1,11 @@
 import { supabase } from '../lib/supabaseClient';
+import { asegurarConsentimientoIA } from './privacidad';
 
 // messages: [{ role: 'user'|'assistant', content: string }, ...]
 // Devuelve el texto de la respuesta o lanza un error con un mensaje para
 // mostrar directo en el chat.
 export async function askAssistant({ context, messages }) {
+  await asegurarConsentimientoIA('ia_asistente');
   const { data, error } = await supabase.functions.invoke('ask-assistant', {
     body: { context, messages },
   });

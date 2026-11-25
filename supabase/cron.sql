@@ -3,10 +3,8 @@
 -- Ejecutar en el SQL Editor de Supabase DESPUÉS de desplegar la
 -- Edge Function (supabase functions deploy generate-recurring-expenses).
 --
--- Antes de ejecutar, reemplaza:
---   TU-PROYECTO   -> el ID de tu proyecto (lo ves en la URL del panel,
---                     o en Settings > API como parte del Project URL)
---   TU-ANON-KEY   -> tu clave "anon public" (Settings > API)
+-- Ya trae el ID del proyecto, la clave publicable y el secreto del cron
+-- (el mismo valor del secret CRON_SECRET de la funcion). No subir a GitHub.
 -- ============================================================
 
 create extension if not exists pg_cron with schema extensions;
@@ -22,10 +20,11 @@ select cron.schedule(
   '0 9 * * *',
   $$
   select net.http_post(
-    url := 'https://TU-PROYECTO.supabase.co/functions/v1/generate-recurring-expenses',
+    url := 'https://boekkozqphevycbszind.supabase.co/functions/v1/generate-recurring-expenses',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer TU-ANON-KEY'
+      'Authorization', 'Bearer sb_publishable_CSrEh9r_Nt_3LUPBxUoTfQ_KBV72Iha',
+      'x-cron-secret', 'BUHHsTPFm0zsHnkFf4fY0x-SCWOKDi9b'
     ),
     body := '{}'::jsonb
   );

@@ -36,3 +36,29 @@ describe('construirHojas', () => {
     expect(hoja('Categorías').filas[0]).toMatchObject({ 'Saldo actual': 12345, 'Es inventario': 'Sí' });
   });
 });
+
+import { hojasParaExcel } from './exportData';
+
+describe('hojasParaExcel', () => {
+  it('arma encabezados en negrita, filas y ancho de columnas', () => {
+    const r = hojasParaExcel([{ nombre: 'Gastos', filas: [{ Fecha: '2026-11-01', Monto: 5000 }] }]);
+    expect(r[0].sheet).toBe('Gastos');
+    expect(r[0].data[0]).toEqual([
+      { value: 'Fecha', fontWeight: 'bold' },
+      { value: 'Monto', fontWeight: 'bold' },
+    ]);
+    expect(r[0].data[1]).toEqual([{ value: '2026-11-01' }, { value: 5000 }]);
+    expect(r[0].columns).toEqual([{ width: 12 }, { width: 12 }]);
+  });
+
+  it('una hoja sin datos dice "Sin datos" y el nombre se corta a 31 caracteres', () => {
+    const r = hojasParaExcel([{ nombre: 'x'.repeat(40), filas: [] }]);
+    expect(r[0].sheet).toHaveLength(31);
+    expect(r[0].data[1]).toEqual([{ value: 'Sin datos' }]);
+  });
+
+  it('un valor vacio queda como texto vacio', () => {
+    const r = hojasParaExcel([{ nombre: 'A', filas: [{ Nota: null }] }]);
+    expect(r[0].data[1]).toEqual([{ value: '' }]);
+  });
+});

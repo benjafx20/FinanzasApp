@@ -160,14 +160,22 @@ export function construirHojas({
 
 // Arma y descarga el archivo .xlsx. La librería de Excel se carga recién acá
 // (no pesa en el resto de la app).
+export function hojasParaExcel(hojas) {
+  return hojas.map((hoja) => {
+    const filas = hoja.filas.length ? hoja.filas : [{ Info: 'Sin datos' }];
+    const encabezados = Object.keys(filas[0]);
+    return {
+      sheet: hoja.nombre.slice(0, 31),
+      columns: encabezados.map((h) => ({ width: Math.max(12, h.length + 2) })),
+      data: [
+        encabezados.map((h) => ({ value: h, fontWeight: 'bold' })),
+        ...filas.map((f) => encabezados.map((h) => ({ value: f[h] ?? '' }))),
+      ],
+    };
+  });
+}
+
 export async function descargarExcel(hojas, nombreArchivo) {
-  const XLSX = await import('xlsx');
-  const libro = XLSX.utils.book_new();
-  for (const hoja of hojas) {
-    const ws = XLSX.utils.json_to_sheet(hoja.filas.length ? hoja.filas : [{ Info: 'Sin datos' }]);
-    const encabezados = Object.keys(hoja.filas[0] || { Info: '' });
-    ws['!cols'] = encabezados.map((h) => ({ wch: Math.max(12, h.length + 2) }));
-    XLSX.utils.book_append_sheet(libro, ws, hoja.nombre.slice(0, 31));
-  }
-  XLSX.writeFile(libro, nombreArchivo);
+  const { default: writeExcelFile } = await import('write-excel-file/browser');
+  await writeExcelFile(hojasParaExcel(hojas)).toFile(nombreArchivo);
 }

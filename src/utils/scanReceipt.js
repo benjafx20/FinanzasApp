@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { asegurarConsentimientoIA } from './privacidad';
 
 // Achica la foto antes de mandarla, pero no tanto: una boleta es larga y
 // angosta, así que con un límite bajo el texto queda diminuto y se lee mal
@@ -58,6 +59,7 @@ function comprimirImagen(file) {
 // null si no se pudo leer o decidir con confianza) o lanza un error con un
 // mensaje para mostrar.
 export async function scanReceipt(file, categorias = []) {
+  await asegurarConsentimientoIA('ia_boletas');
   const { base64, blob } = await comprimirImagen(file);
 
   const { data, error } = await supabase.functions.invoke('scan-receipt', {
